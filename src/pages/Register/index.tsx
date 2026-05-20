@@ -2,8 +2,7 @@ import { useState } from 'react'
 import { useNavigate, Link as RouterLink } from 'react-router-dom'
 import {
   Box,
-  Card,
-  CardContent,
+  Paper,
   TextField,
   Button,
   Typography,
@@ -31,7 +30,6 @@ export default function Register() {
       setError('两次密码不一致')
       return
     }
-    // Mock 注册，后续对接后端
     login({ id: '1', username, avatar: '' }, 'mock-token')
     navigate('/')
   }
@@ -43,75 +41,39 @@ export default function Register() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(135deg, #0a1929 0%, #132f4c 100%)',
+        bgcolor: 'background.default',
       }}
     >
-      <Card sx={{ width: 400, maxWidth: '90vw' }}>
-        <CardContent sx={{ p: 4 }}>
-          <Typography variant="h4" align="center" gutterBottom sx={{ fontWeight: 700 }}>
-            注册账号
-          </Typography>
-          <Typography variant="body2" align="center" color="text.secondary" sx={{ mb: 3 }}>
-            需要邀请码才能注册
-          </Typography>
+      <Paper sx={{ width: 320, p: 3 }}>
+        <Typography variant="h6" align="center" sx={{ fontWeight: 700, mb: 0.5 }}>
+          注册账号
+        </Typography>
+        <Typography variant="caption" align="center" color="text.secondary" display="block" sx={{ mb: 2 }}>
+          需要邀请码才能注册
+        </Typography>
 
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
+        {error && (
+          <Alert severity="error" sx={{ mb: 1.5, fontSize: 13 }} onClose={() => setError('')}>
+            {error}
+          </Alert>
+        )}
 
-          <Box component="form" onSubmit={handleSubmit}>
-            <TextField
-              fullWidth
-              label="用户名"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              margin="normal"
-              autoFocus
-            />
-            <TextField
-              fullWidth
-              label="密码"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              margin="normal"
-            />
-            <TextField
-              fullWidth
-              label="确认密码"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              margin="normal"
-            />
-            <TextField
-              fullWidth
-              label="邀请码"
-              value={inviteCode}
-              onChange={(e) => setInviteCode(e.target.value)}
-              margin="normal"
-              helperText="需要已有用户提供的邀请码"
-            />
-            <Button
-              type="submit"
-              fullWidth
-              variant="contained"
-              size="large"
-              sx={{ mt: 2, mb: 2 }}
-            >
-              注册
-            </Button>
-            <Typography variant="body2" align="center">
-              已有账号？{' '}
-              <Link component={RouterLink} to="/login">
-                登录
-              </Link>
-            </Typography>
-          </Box>
-        </CardContent>
-      </Card>
+        <Box component="form" onSubmit={handleSubmit}>
+          <TextField fullWidth label="用户名" value={username} onChange={(e) => setUsername(e.target.value)} margin="dense" size="small" autoFocus />
+          <TextField fullWidth label="密码" type="password" value={password} onChange={(e) => setPassword(e.target.value)} margin="dense" size="small" />
+          <TextField fullWidth label="确认密码" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} margin="dense" size="small" />
+          <TextField fullWidth label="邀请码" value={inviteCode} onChange={(e) => setInviteCode(e.target.value)} margin="dense" size="small" />
+          <Button type="submit" fullWidth variant="contained" sx={{ mt: 1.5, mb: 1.5 }} size="medium">
+            注册
+          </Button>
+          <Typography variant="caption" align="center" display="block">
+            已有账号？{' '}
+            <Link component={RouterLink} to="/login" sx={{ fontSize: 'inherit' }}>
+              登录
+            </Link>
+          </Typography>
+        </Box>
+      </Paper>
     </Box>
   )
 }

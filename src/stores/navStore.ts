@@ -7,9 +7,11 @@ const defaultCategories: NavCategory[] = [
     name: '开发工具',
     icon: 'Code',
     sites: [
-      { id: '1', name: 'GitHub', url: 'https://github.com', icon: '🐙', description: '代码托管平台', categoryId: 'dev' },
-      { id: '2', name: 'Stack Overflow', url: 'https://stackoverflow.com', icon: '📚', description: '技术问答', categoryId: 'dev' },
-      { id: '3', name: 'VS Code', url: 'https://code.visualstudio.com', icon: '💻', description: '代码编辑器', categoryId: 'dev' },
+      { id: '1', name: 'GitHub', url: 'https://github.com', icon: 'GH', description: '代码托管平台', categoryId: 'dev' },
+      { id: '2', name: 'Stack Overflow', url: 'https://stackoverflow.com', icon: 'SO', description: '技术问答', categoryId: 'dev' },
+      { id: '3', name: 'VS Code', url: 'https://code.visualstudio.com', icon: 'VS', description: '代码编辑器', categoryId: 'dev' },
+      { id: '4', name: 'NPM', url: 'https://www.npmjs.com', icon: 'NM', description: '包管理平台', categoryId: 'dev' },
+      { id: '5', name: 'MDN', url: 'https://developer.mozilla.org', icon: 'MD', description: 'Web 开发文档', categoryId: 'dev' },
     ],
   },
   {
@@ -17,9 +19,10 @@ const defaultCategories: NavCategory[] = [
     name: 'AI 工具',
     icon: 'SmartToy',
     sites: [
-      { id: '4', name: 'ChatGPT', url: 'https://chat.openai.com', icon: '🤖', description: 'OpenAI 对话模型', categoryId: 'ai' },
-      { id: '5', name: 'Claude', url: 'https://claude.ai', icon: '🧠', description: 'Anthropic 对话模型', categoryId: 'ai' },
-      { id: '6', name: 'Gemini', url: 'https://gemini.google.com', icon: '✨', description: 'Google AI', categoryId: 'ai' },
+      { id: '6', name: 'ChatGPT', url: 'https://chat.openai.com', icon: 'GPT', description: 'OpenAI 对话模型', categoryId: 'ai' },
+      { id: '7', name: 'Claude', url: 'https://claude.ai', icon: 'CL', description: 'Anthropic 对话模型', categoryId: 'ai' },
+      { id: '8', name: 'Gemini', url: 'https://gemini.google.com', icon: 'GM', description: 'Google AI', categoryId: 'ai' },
+      { id: '9', name: 'DeepSeek', url: 'https://chat.deepseek.com', icon: 'DS', description: '深度求索', categoryId: 'ai' },
     ],
   },
   {
@@ -27,17 +30,18 @@ const defaultCategories: NavCategory[] = [
     name: '资讯',
     icon: 'Article',
     sites: [
-      { id: '7', name: '掘金', url: 'https://juejin.cn', icon: '⛏️', description: '技术社区', categoryId: 'news' },
-      { id: '8', name: 'V2EX', url: 'https://v2ex.com', icon: '💬', description: '创意工作者社区', categoryId: 'news' },
+      { id: '10', name: '掘金', url: 'https://juejin.cn', icon: 'JJ', description: '技术社区', categoryId: 'news' },
+      { id: '11', name: 'V2EX', url: 'https://v2ex.com', icon: 'V2', description: '创意工作者社区', categoryId: 'news' },
+      { id: '12', name: 'Hacker News', url: 'https://news.ycombinator.com', icon: 'HN', description: '科技新闻', categoryId: 'news' },
     ],
   },
 ]
 
 const defaultEngines: SearchEngine[] = [
-  { id: 'google', name: 'Google', icon: '🔍', url: 'https://www.google.com/search?q=' },
-  { id: 'bing', name: 'Bing', icon: '🔎', url: 'https://www.bing.com/search?q=' },
-  { id: 'baidu', name: '百度', icon: '🅱️', url: 'https://www.baidu.com/s?wd=' },
-  { id: 'github', name: 'GitHub', icon: '🐙', url: 'https://github.com/search?q=' },
+  { id: 'google', name: 'Google', icon: 'G', url: 'https://www.google.com/search?q=' },
+  { id: 'bing', name: 'Bing', icon: 'B', url: 'https://www.bing.com/search?q=' },
+  { id: 'baidu', name: '百度', icon: 'BD', url: 'https://www.baidu.com/s?wd=' },
+  { id: 'github', name: 'GitHub', icon: 'GH', url: 'https://github.com/search?q=' },
 ]
 
 interface NavState {
@@ -59,7 +63,7 @@ export const useNavStore = create<NavState>((set) => ({
   categories: JSON.parse(localStorage.getItem('navCategories') || 'null') || defaultCategories,
   searchEngines: defaultEngines,
   currentEngine: defaultEngines[0],
-  background: localStorage.getItem('navBackground') || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+  background: localStorage.getItem('navBackground') || '#0a1929',
   addCategory: (category) =>
     set((state) => {
       const updated = [...state.categories, category]

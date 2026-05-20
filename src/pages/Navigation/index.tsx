@@ -5,11 +5,6 @@ import {
   InputAdornment,
   IconButton,
   Typography,
-  Card,
-  CardContent,
-  CardActionArea,
-  Grid,
-  Chip,
   Button,
   Dialog,
   DialogTitle,
@@ -20,16 +15,12 @@ import {
   Select,
   MenuItem,
   Tooltip,
+  Paper,
+  Divider,
 } from '@mui/material'
-import {
-  Search,
-  Add,
-  Delete,
-  Edit,
-  OpenInNew,
-} from '@mui/icons-material'
+import { Search, Add, Delete, Edit, OpenInNew, FolderOpen } from '@mui/icons-material'
 import { useNavStore } from '../../stores'
-import type { NavSite, NavCategory } from '../../types'
+import type { NavSite } from '../../types'
 
 export default function Navigation() {
   const {
@@ -63,7 +54,7 @@ export default function Navigation() {
 
   const openAddSiteDialog = (categoryId?: string) => {
     setEditingSite(null)
-    setSiteForm({ name: '', url: '', icon: '🔗', description: '', categoryId: categoryId || categories[0]?.id || '' })
+    setSiteForm({ name: '', url: '', icon: '', description: '', categoryId: categoryId || categories[0]?.id || '' })
     setDialogOpen(true)
   }
 
@@ -92,16 +83,12 @@ export default function Navigation() {
     setDialogOpen(false)
   }
 
-  const handleDeleteSite = (siteId: string) => {
-    deleteSite(siteId)
-  }
-
   const handleAddCategory = () => {
     if (!categoryForm.name) return
     addCategory({
       id: Date.now().toString(),
       name: categoryForm.name,
-      icon: categoryForm.icon || '📁',
+      icon: categoryForm.icon || 'Folder',
       sites: [],
     })
     setCategoryDialogOpen(false)
@@ -109,233 +96,206 @@ export default function Navigation() {
   }
 
   return (
-    <Box sx={{ background, minHeight: 'calc(100vh - 64px - 48px)', borderRadius: 2, p: 3 }}>
+    <Box sx={{ background, minHeight: 'calc(100vh - 64px - 48px)', borderRadius: 1, p: 2 }}>
       {/* 搜索框 */}
-      <Box sx={{ maxWidth: 600, mx: 'auto', mb: 4, pt: 4 }}>
-        <TextField
-          fullWidth
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          onKeyDown={handleSearchKeyDown}
-          placeholder="搜索..."
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <FormControl size="small" sx={{ minWidth: 80 }}>
-                  <Select
-                    value={currentEngine.id}
-                    onChange={(e) => {
-                      const engine = searchEngines.find((eng) => eng.id === e.target.value)
-                      if (engine) setCurrentEngine(engine)
-                    }}
-                    variant="standard"
-                    disableUnderline
-                  >
-                    {searchEngines.map((eng) => (
-                      <MenuItem key={eng.id} value={eng.id}>
-                        {eng.icon} {eng.name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </InputAdornment>
-            ),
-            endAdornment: (
-              <InputAdornment position="end">
-                <IconButton onClick={handleSearch}>
-                  <Search />
-                </IconButton>
-              </InputAdornment>
-            ),
-          }}
-          sx={{
-            '& .MuiOutlinedInput-root': {
-              bgcolor: 'rgba(255,255,255,0.1)',
-              backdropFilter: 'blur(10px)',
-              '&:hover': { bgcolor: 'rgba(255,255,255,0.15)' },
-            },
-          }}
-        />
+      <Box sx={{ maxWidth: 560, mx: 'auto', mb: 3, pt: 2 }}>
+        <Paper sx={{ display: 'flex', alignItems: 'center', px: 1 }}>
+          <FormControl size="small" sx={{ minWidth: 72 }}>
+            <Select
+              value={currentEngine.id}
+              onChange={(e) => {
+                const engine = searchEngines.find((eng) => eng.id === e.target.value)
+                if (engine) setCurrentEngine(engine)
+              }}
+              variant="standard"
+              disableUnderline
+              sx={{ fontSize: 13 }}
+            >
+              {searchEngines.map((eng) => (
+                <MenuItem key={eng.id} value={eng.id} sx={{ fontSize: 13 }}>
+                  {eng.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+          <TextField
+            fullWidth
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={handleSearchKeyDown}
+            placeholder="输入关键词搜索..."
+            variant="standard"
+            disableUnderline
+            InputProps={{
+              sx: { fontSize: 14, py: 0.5 },
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton onClick={handleSearch} size="small">
+                    <Search fontSize="small" />
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+          />
+        </Paper>
       </Box>
 
       {/* 分类和网站 */}
       {categories.map((category) => (
-        <Box key={category.id} sx={{ mb: 4 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h6" sx={{ color: 'white', fontWeight: 600 }}>
-              {category.icon} {category.name}
+        <Box key={category.id} sx={{ mb: 2.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+            <FolderOpen sx={{ fontSize: 16, color: 'rgba(255,255,255,0.5)', mr: 0.5 }} />
+            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600, fontSize: 13 }}>
+              {category.name}
             </Typography>
             <Tooltip title="添加网站">
               <IconButton
                 size="small"
-                sx={{ ml: 1, color: 'rgba(255,255,255,0.7)' }}
+                sx={{ ml: 0.5, color: 'rgba(255,255,255,0.4)', p: 0.25 }}
                 onClick={() => openAddSiteDialog(category.id)}
               >
-                <Add fontSize="small" />
+                <Add sx={{ fontSize: 14 }} />
               </IconButton>
             </Tooltip>
           </Box>
-          <Grid container spacing={2}>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
             {category.sites.map((site) => (
-              <Grid item xs={6} sm={4} md={3} lg={2} key={site.id}>
-                <Card
+              <Paper
+                key={site.id}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  px: 1.5,
+                  py: 0.75,
+                  bgcolor: 'rgba(255,255,255,0.08)',
+                  cursor: 'pointer',
+                  width: 170,
+                  '&:hover': {
+                    bgcolor: 'rgba(255,255,255,0.15)',
+                    '& .site-actions': { opacity: 1 },
+                  },
+                  transition: 'all 0.15s',
+                }}
+                onClick={() => window.open(site.url, '_blank')}
+              >
+                <Box
                   sx={{
-                    bgcolor: 'rgba(255,255,255,0.1)',
-                    backdropFilter: 'blur(10px)',
-                    '&:hover': { bgcolor: 'rgba(255,255,255,0.18)', transform: 'translateY(-2px)' },
-                    transition: 'all 0.2s',
-                    position: 'relative',
+                    width: 28,
+                    height: 28,
+                    borderRadius: 0.5,
+                    bgcolor: 'rgba(255,255,255,0.12)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: 'rgba(255,255,255,0.7)',
+                    flexShrink: 0,
                   }}
                 >
-                  <CardActionArea
-                    onClick={() => window.open(site.url, '_blank')}
-                    sx={{ p: 2, textAlign: 'center' }}
+                  {site.icon || site.name.slice(0, 2).toUpperCase()}
+                </Box>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography variant="body2" sx={{ color: '#fff', fontSize: 13, fontWeight: 500, lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {site.name}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>
+                    {site.description}
+                  </Typography>
+                </Box>
+                <Box
+                  className="site-actions"
+                  sx={{ display: 'flex', gap: 0.25, opacity: 0, transition: 'opacity 0.15s' }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <IconButton
+                    size="small"
+                    sx={{ p: 0.25, color: 'rgba(255,255,255,0.5)', '&:hover': { color: 'white' } }}
+                    onClick={() => openEditSiteDialog(site)}
                   >
-                    <Typography variant="h4" sx={{ mb: 1 }}>
-                      {site.icon}
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: 'white', fontWeight: 500 }}>
-                      {site.name}
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>
-                      {site.description}
-                    </Typography>
-                  </CardActionArea>
-                  <Box sx={{ position: 'absolute', top: 4, right: 4, display: 'flex', gap: 0.5 }}>
-                    <IconButton
-                      size="small"
-                      sx={{ color: 'rgba(255,255,255,0.5)', '&:hover': { color: 'white' } }}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        openEditSiteDialog(site)
-                      }}
-                    >
-                      <Edit fontSize="inherit" />
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      sx={{ color: 'rgba(255,255,255,0.5)', '&:hover': { color: '#f44336' } }}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleDeleteSite(site.id)
-                      }}
-                    >
-                      <Delete fontSize="inherit" />
-                    </IconButton>
-                  </Box>
-                </Card>
-              </Grid>
+                    <Edit sx={{ fontSize: 12 }} />
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    sx={{ p: 0.25, color: 'rgba(255,255,255,0.5)', '&:hover': { color: '#f44336' } }}
+                    onClick={() => deleteSite(site.id)}
+                  >
+                    <Delete sx={{ fontSize: 12 }} />
+                  </IconButton>
+                </Box>
+              </Paper>
             ))}
             {/* 添加按钮 */}
-            <Grid item xs={6} sm={4} md={3} lg={2}>
-              <Card
-                sx={{
-                  bgcolor: 'rgba(255,255,255,0.05)',
-                  border: '2px dashed rgba(255,255,255,0.2)',
-                  '&:hover': { bgcolor: 'rgba(255,255,255,0.1)', borderColor: 'rgba(255,255,255,0.4)' },
-                  transition: 'all 0.2s',
-                }}
-              >
-                <CardActionArea onClick={() => openAddSiteDialog(category.id)} sx={{ p: 2, textAlign: 'center' }}>
-                  <Add sx={{ fontSize: 40, color: 'rgba(255,255,255,0.4)', mb: 1 }} />
-                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.5)' }}>
-                    添加网站
-                  </Typography>
-                </CardActionArea>
-              </Card>
-            </Grid>
-          </Grid>
+            <Paper
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 0.5,
+                px: 1.5,
+                py: 0.75,
+                width: 170,
+                border: '1px dashed rgba(255,255,255,0.15)',
+                bgcolor: 'transparent',
+                cursor: 'pointer',
+                '&:hover': { bgcolor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.3)' },
+                transition: 'all 0.15s',
+              }}
+              onClick={() => openAddSiteDialog(category.id)}
+            >
+              <Add sx={{ fontSize: 14, color: 'rgba(255,255,255,0.3)' }} />
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 12 }}>
+                添加
+              </Typography>
+            </Paper>
+          </Box>
         </Box>
       ))}
 
       {/* 添加分类 */}
       <Button
-        startIcon={<Add />}
-        sx={{ color: 'rgba(255,255,255,0.7)', mt: 2 }}
+        startIcon={<Add sx={{ fontSize: 14 }} />}
+        size="small"
+        sx={{ color: 'rgba(255,255,255,0.4)', mt: 1, fontSize: 12 }}
         onClick={() => setCategoryDialogOpen(true)}
       >
         添加分类
       </Button>
 
       {/* 网站编辑弹窗 */}
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>{editingSite ? '编辑网站' : '添加网站'}</DialogTitle>
-        <DialogContent>
-          <TextField
-            fullWidth
-            label="名称"
-            value={siteForm.name}
-            onChange={(e) => setSiteForm({ ...siteForm, name: e.target.value })}
-            margin="normal"
-          />
-          <TextField
-            fullWidth
-            label="URL"
-            value={siteForm.url}
-            onChange={(e) => setSiteForm({ ...siteForm, url: e.target.value })}
-            margin="normal"
-          />
-          <TextField
-            fullWidth
-            label="图标（Emoji）"
-            value={siteForm.icon}
-            onChange={(e) => setSiteForm({ ...siteForm, icon: e.target.value })}
-            margin="normal"
-          />
-          <TextField
-            fullWidth
-            label="描述"
-            value={siteForm.description}
-            onChange={(e) => setSiteForm({ ...siteForm, description: e.target.value })}
-            margin="normal"
-          />
-          <FormControl fullWidth margin="normal">
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ pb: 1 }}>{editingSite ? '编辑网站' : '添加网站'}</DialogTitle>
+        <DialogContent sx={{ pt: '8px !important' }}>
+          <TextField fullWidth label="名称" value={siteForm.name} onChange={(e) => setSiteForm({ ...siteForm, name: e.target.value })} margin="dense" size="small" />
+          <TextField fullWidth label="URL" value={siteForm.url} onChange={(e) => setSiteForm({ ...siteForm, url: e.target.value })} margin="dense" size="small" />
+          <TextField fullWidth label="图标（缩写）" value={siteForm.icon} onChange={(e) => setSiteForm({ ...siteForm, icon: e.target.value })} margin="dense" size="small" placeholder="如 GH、GPT" />
+          <TextField fullWidth label="描述" value={siteForm.description} onChange={(e) => setSiteForm({ ...siteForm, description: e.target.value })} margin="dense" size="small" />
+          <FormControl fullWidth margin="dense" size="small">
             <InputLabel>分类</InputLabel>
-            <Select
-              value={siteForm.categoryId}
-              onChange={(e) => setSiteForm({ ...siteForm, categoryId: e.target.value })}
-              label="分类"
-            >
+            <Select value={siteForm.categoryId} onChange={(e) => setSiteForm({ ...siteForm, categoryId: e.target.value })} label="分类">
               {categories.map((c) => (
-                <MenuItem key={c.id} value={c.id}>
-                  {c.icon} {c.name}
-                </MenuItem>
+                <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
               ))}
             </Select>
           </FormControl>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDialogOpen(false)}>取消</Button>
-          <Button variant="contained" onClick={handleSaveSite}>
-            保存
-          </Button>
+          <Button onClick={() => setDialogOpen(false)} size="small">取消</Button>
+          <Button variant="contained" onClick={handleSaveSite} size="small">保存</Button>
         </DialogActions>
       </Dialog>
 
       {/* 分类编辑弹窗 */}
-      <Dialog open={categoryDialogOpen} onClose={() => setCategoryDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>添加分类</DialogTitle>
-        <DialogContent>
-          <TextField
-            fullWidth
-            label="分类名称"
-            value={categoryForm.name}
-            onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })}
-            margin="normal"
-          />
-          <TextField
-            fullWidth
-            label="图标（Emoji）"
-            value={categoryForm.icon}
-            onChange={(e) => setCategoryForm({ ...categoryForm, icon: e.target.value })}
-            margin="normal"
-          />
+      <Dialog open={categoryDialogOpen} onClose={() => setCategoryDialogOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ pb: 1 }}>添加分类</DialogTitle>
+        <DialogContent sx={{ pt: '8px !important' }}>
+          <TextField fullWidth label="分类名称" value={categoryForm.name} onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })} margin="dense" size="small" />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setCategoryDialogOpen(false)}>取消</Button>
-          <Button variant="contained" onClick={handleAddCategory}>
-            添加
-          </Button>
+          <Button onClick={() => setCategoryDialogOpen(false)} size="small">取消</Button>
+          <Button variant="contained" onClick={handleAddCategory} size="small">添加</Button>
         </DialogActions>
       </Dialog>
     </Box>

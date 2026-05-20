@@ -3,12 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import {
   Box,
   Button,
-  Card,
-  CardContent,
-  CardActionArea,
   Typography,
   Chip,
-  Grid,
   InputAdornment,
   TextField,
   IconButton,
@@ -16,8 +12,16 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Tooltip,
 } from '@mui/material'
-import { Add, Search, Delete, Edit, CalendarToday } from '@mui/icons-material'
+import { Add, Search, Delete, Edit, CalendarToday, Article } from '@mui/icons-material'
 import { useBlogStore } from '../../stores'
 
 export default function BlogList() {
@@ -47,23 +51,23 @@ export default function BlogList() {
   }
 
   const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr)
-    return date.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' })
+    const d = new Date(dateStr)
+    return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`
   }
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h5" sx={{ fontWeight: 600 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h6" sx={{ fontWeight: 600 }}>
           博客
         </Typography>
-        <Button variant="contained" startIcon={<Add />} onClick={() => navigate('/blog/new')}>
+        <Button variant="contained" size="small" startIcon={<Add sx={{ fontSize: 16 }} />} onClick={() => navigate('/blog/new')}>
           写文章
         </Button>
       </Box>
 
       {/* 搜索和标签筛选 */}
-      <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+      <Box sx={{ display: 'flex', gap: 1, mb: 2, alignItems: 'center', flexWrap: 'wrap' }}>
         <TextField
           size="small"
           placeholder="搜索文章..."
@@ -72,115 +76,101 @@ export default function BlogList() {
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <Search fontSize="small" />
+                <Search sx={{ fontSize: 16 }} />
               </InputAdornment>
             ),
           }}
-          sx={{ flex: 1, maxWidth: 400 }}
+          sx={{ width: 240 }}
         />
-        {allTags.length > 0 && (
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
-            <Chip
-              label="全部"
-              size="small"
-              variant={filterTag === '' ? 'filled' : 'outlined'}
-              onClick={() => setFilterTag('')}
-            />
-            {allTags.map((tag) => (
-              <Chip
-                key={tag}
-                label={tag}
-                size="small"
-                variant={filterTag === tag ? 'filled' : 'outlined'}
-                onClick={() => setFilterTag(filterTag === tag ? '' : tag)}
-              />
-            ))}
-          </Box>
-        )}
+        <Chip label="全部" size="small" variant={filterTag === '' ? 'filled' : 'outlined'} onClick={() => setFilterTag('')} sx={{ height: 24 }} />
+        {allTags.map((tag) => (
+          <Chip key={tag} label={tag} size="small" variant={filterTag === tag ? 'filled' : 'outlined'} onClick={() => setFilterTag(filterTag === tag ? '' : tag)} sx={{ height: 24 }} />
+        ))}
       </Box>
 
       {filteredPosts.length === 0 ? (
-        <Card sx={{ p: 6, textAlign: 'center' }}>
-          <Typography variant="h6" color="text.secondary">
+        <Paper sx={{ p: 3, textAlign: 'center' }}>
+          <Article sx={{ fontSize: 32, color: 'text.secondary', mb: 1 }} />
+          <Typography variant="body2" color="text.secondary">
             {posts.length === 0 ? '还没有发布任何文章' : '没有匹配的文章'}
           </Typography>
           {posts.length === 0 && (
-            <Button variant="outlined" startIcon={<Add />} onClick={() => navigate('/blog/new')} sx={{ mt: 2 }}>
+            <Button variant="outlined" size="small" startIcon={<Add />} onClick={() => navigate('/blog/new')} sx={{ mt: 1 }}>
               写第一篇文章
             </Button>
           )}
-        </Card>
+        </Paper>
       ) : (
-        <Grid container spacing={2}>
-          {filteredPosts.map((post) => (
-            <Grid item xs={12} md={6} lg={4} key={post.id}>
-              <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                <CardActionArea onClick={() => navigate(`/blog/${post.id}`)} sx={{ flex: 1 }}>
-                  <CardContent>
-                    <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-                      {post.title}
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{
-                        mb: 2,
-                        display: '-webkit-box',
-                        WebkitLineClamp: 3,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden',
-                      }}
-                    >
-                      {post.summary || post.content.slice(0, 150)}
-                    </Typography>
-                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 1 }}>
-                      {post.category && (
-                        <Chip label={post.category} size="small" color="primary" />
-                      )}
+        <TableContainer component={Paper}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ py: 1 }}>标题</TableCell>
+                <TableCell sx={{ py: 1 }}>分类</TableCell>
+                <TableCell sx={{ py: 1 }}>标签</TableCell>
+                <TableCell sx={{ py: 1 }}>摘要</TableCell>
+                <TableCell sx={{ py: 1 }}>日期</TableCell>
+                <TableCell sx={{ py: 1 }} align="right">操作</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {filteredPosts.map((post) => (
+                <TableRow
+                  key={post.id}
+                  hover
+                  sx={{ cursor: 'pointer' }}
+                  onClick={() => navigate(`/blog/${post.id}`)}
+                >
+                  <TableCell sx={{ py: 0.75, fontWeight: 500, fontSize: 13 }}>{post.title}</TableCell>
+                  <TableCell sx={{ py: 0.75 }}>
+                    {post.category && <Chip label={post.category} size="small" color="primary" variant="outlined" sx={{ height: 20, fontSize: 11 }} />}
+                  </TableCell>
+                  <TableCell sx={{ py: 0.75 }}>
+                    <Box sx={{ display: 'flex', gap: 0.25, flexWrap: 'wrap' }}>
                       {post.tags.map((tag) => (
-                        <Chip key={tag} label={tag} size="small" variant="outlined" />
+                        <Chip key={tag} label={tag} size="small" sx={{ height: 20, fontSize: 11 }} />
                       ))}
                     </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <CalendarToday sx={{ fontSize: 14, color: 'text.secondary' }} />
-                      <Typography variant="caption" color="text.secondary">
-                        {formatDate(post.createdAt)}
-                      </Typography>
-                    </Box>
-                  </CardContent>
-                </CardActionArea>
-                <Box sx={{ p: 1, display: 'flex', justifyContent: 'flex-end', gap: 0.5 }}>
-                  <IconButton size="small" onClick={() => navigate(`/blog/edit/${post.id}`)}>
-                    <Edit fontSize="small" />
-                  </IconButton>
-                  <IconButton
-                    size="small"
-                    color="error"
-                    onClick={() => {
-                      setDeletingId(post.id)
-                      setDeleteDialogOpen(true)
-                    }}
-                  >
-                    <Delete fontSize="small" />
-                  </IconButton>
-                </Box>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
+                  </TableCell>
+                  <TableCell sx={{ py: 0.75, fontSize: 12, color: 'text.secondary', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {post.summary || post.content.slice(0, 60)}
+                  </TableCell>
+                  <TableCell sx={{ py: 0.75, fontSize: 12, color: 'text.secondary' }}>
+                    {formatDate(post.createdAt)}
+                  </TableCell>
+                  <TableCell sx={{ py: 0.75 }} align="right">
+                    <IconButton size="small" sx={{ p: 0.25 }} onClick={(e) => { e.stopPropagation(); navigate(`/blog/edit/${post.id}`) }}>
+                      <Edit sx={{ fontSize: 14 }} />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      sx={{ p: 0.25 }}
+                      color="error"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setDeletingId(post.id)
+                        setDeleteDialogOpen(true)
+                      }}
+                    >
+                      <Delete sx={{ fontSize: 14 }} />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
       )}
 
       {/* 删除确认弹窗 */}
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
-        <DialogTitle>确认删除</DialogTitle>
-        <DialogContent>
-          <Typography>确定要删除这篇文章吗？此操作不可恢复。</Typography>
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} maxWidth="xs">
+        <DialogTitle sx={{ pb: 1 }}>确认删除</DialogTitle>
+        <DialogContent sx={{ pt: '8px !important' }}>
+          <Typography variant="body2">确定要删除这篇文章吗？此操作不可恢复。</Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>取消</Button>
-          <Button variant="contained" color="error" onClick={handleDelete}>
-            删除
-          </Button>
+          <Button onClick={() => setDeleteDialogOpen(false)} size="small">取消</Button>
+          <Button variant="contained" color="error" onClick={handleDelete} size="small">删除</Button>
         </DialogActions>
       </Dialog>
     </Box>
