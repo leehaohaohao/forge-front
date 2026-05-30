@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { message } from 'antd';
 import type { Token, TokenFormValues, TokenQueryParams } from '@/types/token';
 
 interface ApiResponse<T> {
@@ -15,7 +16,16 @@ interface PageData {
 }
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: '/forge',
+});
+
+api.interceptors.response.use((res) => {
+  const body = res.data as ApiResponse<unknown>;
+  if (body.code !== 0) {
+    message.error(body.message || '请求失败');
+    return Promise.reject(new Error(body.message));
+  }
+  return res;
 });
 
 export async function getTokens(params?: TokenQueryParams) {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Table,
   Button,
@@ -6,7 +6,10 @@ import {
   Modal,
   Form,
   Input,
+  InputNumber,
   Select,
+  Row,
+  Col,
   DatePicker,
   message,
   Popconfirm,
@@ -33,12 +36,18 @@ const { Text } = Typography;
 const PROVIDERS = [
   { value: 'openai', label: 'OpenAI', color: '#10a37f' },
   { value: 'anthropic', label: 'Anthropic', color: '#d4a574' },
-  { value: 'google', label: 'Google', color: '#4285f4' },
+  { value: 'github', label: 'GitHub', color: '#333333' },
+  { value: 'aws', label: 'AWS', color: '#ff9900' },
   { value: 'azure', label: 'Azure', color: '#0078d4' },
   { value: 'other', label: '其他', color: '#8c8c8c' },
 ];
-const GROUPS = ['默认', '生产', '测试', '开发'];
-const TOKEN_TYPES = ['API Key', 'Access Token', 'Refresh Token'];
+const TOKEN_TYPES = ['coding', 'billing', 'access', 'infra'];
+const CATEGORIES = ['密钥', '凭证', '证书', '其他'];
+
+function mergeOptions(hardcoded: string[], fromData: (string | null | undefined)[]) {
+  const unique = new Set([...hardcoded, ...fromData.filter(Boolean)]);
+  return Array.from(unique).map((v) => ({ value: v, label: v }));
+}
 
 export default function TokenPage() {
   const [tokens, setTokens] = useState<Token[]>([]);
@@ -48,6 +57,19 @@ export default function TokenPage() {
   const [form] = Form.useForm();
   const [searchForm] = Form.useForm();
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
+
+  const providerOptions = useMemo(() => {
+    const hardcoded = PROVIDERS.map((p) => p.value);
+    return mergeOptions(hardcoded, tokens.map((t) => t.provider));
+  }, [tokens]);
+
+  const typeOptions = useMemo(() => {
+    return mergeOptions(TOKEN_TYPES, tokens.map((t) => t.token_type));
+  }, [tokens]);
+
+  const categoryOptions = useMemo(() => {
+    return mergeOptions(CATEGORIES, tokens.map((t) => t.category));
+  }, [tokens]);
 
   const fetchTokens = async (params?: Record<string, unknown>) => {
     setLoading(true);
@@ -60,7 +82,7 @@ export default function TokenPage() {
       setTokens(res.data);
       setPagination((prev) => ({ ...prev, total: res.total }));
     } catch {
-      message.error('获取Token列表失败');
+      message.error('获取密钥列表失败');
     } finally {
       setLoading(false);
     }
@@ -78,8 +100,12 @@ export default function TokenPage() {
 
   const handleEdit = (record: Token) => {
     setEditingToken(record);
+    const wrapTags = (v: string | null | undefined) => v ? [v] : undefined;
     form.setFieldsValue({
       ...record,
+      provider: wrapTags(record.provider),
+      token_type: wrapTags(record.token_type),
+      category: wrapTags(record.category),
       expires_at: record.expires_at ? dayjs(record.expires_at) : undefined,
     });
     setModalOpen(true);
@@ -98,8 +124,12 @@ export default function TokenPage() {
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
+      const unwrapTags = (v: unknown) => Array.isArray(v) ? v[0] : v;
       const data: TokenFormValues = {
         ...values,
+        provider: unwrapTags(values.provider),
+        token_type: unwrapTags(values.token_type),
+        category: unwrapTags(values.category),
         expires_at: values.expires_at?.toISOString(),
       };
 
@@ -163,16 +193,16 @@ export default function TokenPage() {
       ),
     },
     {
-      title: 'Token',
+      title: '密钥值',
       dataIndex: 'token_value',
       key: 'token_value',
-      render: (text: string) => (
+      render: (text: string, record: Token) => (
         <Space>
           <Text
             code
             style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}
           >
-            {text.substring(0, 6)}...{text.substring(text.length - 4)}
+            {text.substring(0, record.mask_prefix_len || 6)}...{text.substring(text.length - (record.mask_suffix_len || 6))}
           </Text>
           <Tooltip title="复制">
             <Button
@@ -186,9 +216,16 @@ export default function TokenPage() {
       ),
     },
     {
-      title: '分组',
-      dataIndex: 'group_name',
-      key: 'group_name',
+      title: '类型',
+      dataIndex: 'token_type',
+      key: 'token_type',
+      width: 100,
+      render: (text: string) => text || '-',
+    },
+    {
+      title: '种类',
+      dataIndex: 'category',
+      key: 'category',
       width: 100,
       render: (text: string) => text || '-',
     },
@@ -233,7 +270,7 @@ export default function TokenPage() {
     >
       <div style={{ padding: '16px 24px', borderBottom: '1px solid #f0f0f0' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-          <Text strong style={{ fontSize: 16 }}>Token 管理</Text>
+          <Text strong style={{ fontSize: 16 }}>密钥管理</Text>
           <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
             新增
           </Button>
@@ -248,13 +285,14 @@ export default function TokenPage() {
             />
           </Form.Item>
           <Form.Item name="provider">
-            <Select placeholder="供应商" allowClear style={{ width: 120 }}>
-              {PROVIDERS.map((p) => (
-                <Select.Option key={p.value} value={p.value}>
-                  {p.label}
-                </Select.Option>
-              ))}
-            </Select>
+            <Select
+              placeholder="供应商"
+              allowClear
+              style={{ width: 120 }}
+              options={providerOptions}
+              showSearch
+              popupMatchSelectWidth={false}
+            />
           </Form.Item>
           <Form.Item>
             <Space>
@@ -283,7 +321,7 @@ export default function TokenPage() {
               image={Empty.PRESENTED_IMAGE_SIMPLE}
               description={
                 <span style={{ color: '#8c8c8c' }}>
-                  还没有Token，点击上方「新增」添加第一个
+                  还没有密钥，点击上方「新增」添加第一个
                 </span>
               }
             />
@@ -293,7 +331,7 @@ export default function TokenPage() {
       />
 
       <Modal
-        title={editingToken ? '编辑Token' : '新增Token'}
+        title={editingToken ? '编辑密钥' : '新增密钥'}
         open={modalOpen}
         onOk={handleSubmit}
         onCancel={() => setModalOpen(false)}
@@ -304,17 +342,15 @@ export default function TokenPage() {
           <Form.Item
             name="provider"
             label="供应商"
-            rules={[{ required: true, message: '请选择供应商' }]}
+            rules={[{ required: true, message: '请输入或选择供应商' }]}
           >
-            <Select placeholder="选择供应商">
-              {PROVIDERS.map((p) => (
-                <Select.Option key={p.value} value={p.value}>
-                  <Space>
-                    <span style={{ color: p.value }}>{p.label}</span>
-                  </Space>
-                </Select.Option>
-              ))}
-            </Select>
+            <Select
+              placeholder="输入或选择供应商"
+              options={providerOptions}
+              showSearch
+              mode="tags"
+              maxCount={1}
+            />
           </Form.Item>
           <Form.Item
             name="name"
@@ -325,31 +361,52 @@ export default function TokenPage() {
           </Form.Item>
           <Form.Item
             name="token_value"
-            label="Token值"
-            rules={[{ required: true, message: '请输入Token值' }]}
+            label="密钥值"
+            rules={[{ required: true, message: '请输入密钥值' }]}
+            normalize={(value) => value?.trim()}
           >
             <Input.TextArea rows={2} placeholder="sk-..." />
           </Form.Item>
-          <Space style={{ width: '100%' }}>
-            <Form.Item name="group_name" label="分组" style={{ width: 240 }}>
-              <Select placeholder="选择分组" allowClear>
-                {GROUPS.map((g) => (
-                  <Select.Option key={g} value={g}>
-                    {g}
-                  </Select.Option>
-                ))}
-              </Select>
-            </Form.Item>
-            <Form.Item name="token_type" label="类型" style={{ width: 240 }}>
-              <Select placeholder="选择类型" allowClear>
-                {TOKEN_TYPES.map((t) => (
-                  <Select.Option key={t} value={t}>
-                    {t}
-                  </Select.Option>
-                ))}
-              </Select>
-            </Form.Item>
-          </Space>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="token_type" label="类型">
+                <Select
+                  placeholder="输入或选择类型"
+                  options={typeOptions}
+                  showSearch
+                  mode="tags"
+                  maxCount={1}
+                  allowClear
+                  popupMatchSelectWidth={false}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="category" label="种类">
+                <Select
+                  placeholder="输入或选择种类"
+                  options={categoryOptions}
+                  showSearch
+                  mode="tags"
+                  maxCount={1}
+                  allowClear
+                  popupMatchSelectWidth={false}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="mask_prefix_len" label="前缀展示长度" initialValue={6}>
+                <InputNumber min={0} max={20} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="mask_suffix_len" label="后缀展示长度" initialValue={6}>
+                <InputNumber min={0} max={20} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+          </Row>
           <Form.Item name="expires_at" label="过期时间">
             <DatePicker showTime style={{ width: '100%' }} placeholder="留空则永不过期" />
           </Form.Item>
