@@ -3,7 +3,6 @@ export interface Token {
   provider: string;
   name: string;
   token_value: string;
-  group_name: string | null;
   token_type: string | null;
   mask_prefix_len: number;
   mask_suffix_len: number;
@@ -20,7 +19,6 @@ export interface TokenFormValues {
   provider: string;
   name: string;
   token_value: string;
-  group_name?: string;
   token_type?: string;
   category?: string;
   mask_prefix_len?: number;
@@ -33,7 +31,6 @@ export interface TokenQueryParams {
   page?: number;
   page_size?: number;
   provider?: string;
-  group_name?: string;
   category?: string;
   keyword?: string;
 }
