@@ -13,22 +13,24 @@ export default function AddLinkModal({ open, onClose, editingLink }: AddLinkModa
   const { message } = App.useApp();
   const [form] = Form.useForm();
   const { workspaces, createLink, updateLink } = useQuickLinkStore();
+  const extraWorkspaces = workspaces.filter((w) => !w.is_default);
 
   useEffect(() => {
     if (open) {
       if (editingLink) {
+        const defaultId = workspaces.find((w) => w.is_default)?.id;
         form.setFieldsValue({
           name: editingLink.name,
           url: editingLink.url,
           icon: editingLink.icon,
           category: editingLink.category,
-          workspace_ids: editingLink.workspaces,
+          workspace_ids: editingLink.workspaces.filter((id) => id !== defaultId),
         });
       } else {
         form.resetFields();
       }
     }
-  }, [open, editingLink]);
+  }, [open, editingLink, workspaces]);
 
   const handleOk = async () => {
     try {
@@ -70,16 +72,20 @@ export default function AddLinkModal({ open, onClose, editingLink }: AddLinkModa
         </Form.Item>
         <Form.Item
           name="workspace_ids"
-          label="所属工作区"
-          rules={[{ required: true, message: '请至少选择一个工作区' }]}
+          label="额外分配到"
         >
           <Checkbox.Group
-            options={workspaces.map((w) => ({
-              label: w.name + (w.is_default ? ' (默认)' : ''),
+            options={extraWorkspaces.map((w) => ({
+              label: w.name,
               value: w.id,
             }))}
           />
         </Form.Item>
+        {extraWorkspaces.length === 0 && (
+          <div style={{ color: '#8c8c8c', fontSize: 12, marginTop: -8 }}>
+            所有链接默认分配到默认工作区，可在工作区切换器中创建额外工作区
+          </div>
+        )}
       </Form>
     </Modal>
   );

@@ -21,6 +21,8 @@ interface QuickLinkStore {
   createLink: (data: CreateLinkParams) => Promise<void>;
   updateLink: (id: number, data: UpdateLinkParams) => Promise<void>;
   deleteLink: (id: number) => Promise<void>;
+  removeLinkFromWorkspace: (linkId: number, workspaceId: number) => Promise<void>;
+  batchAssignWorkspace: (linkIds: number[], workspaceId: number) => Promise<void>;
 
   createWorkspace: (name: string) => Promise<void>;
   updateWorkspace: (id: number, name: string) => Promise<void>;
@@ -92,6 +94,23 @@ export const useQuickLinkStore = create<QuickLinkStore>((set, get) => ({
 
   deleteLink: async (id) => {
     await quickLinkApi.deleteQuickLink(id);
+    await get().fetchLinks();
+  },
+
+  removeLinkFromWorkspace: async (linkId, workspaceId) => {
+    await quickLinkApi.removeLinkFromWorkspace(linkId, workspaceId);
+    await get().fetchLinks();
+  },
+
+  batchAssignWorkspace: async (linkIds, workspaceId) => {
+    await Promise.all(
+      linkIds.map((id) => {
+        const link = get().links.find((l) => l.id === id);
+        const existing = link?.workspaces || [];
+        const workspace_ids = [...new Set([...existing, workspaceId])];
+        return quickLinkApi.updateQuickLink(id, { workspace_ids });
+      }),
+    );
     await get().fetchLinks();
   },
 

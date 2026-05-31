@@ -19,3 +19,7 @@ export async function updateQuickLink(id: number, data: UpdateLinkParams) {
 export async function deleteQuickLink(id: number) {
   await api.delete(`/quick-link/${id}`);
 }
+
+export async function removeLinkFromWorkspace(linkId: number, workspaceId: number) {
+  await api.delete(`/quick-link/${linkId}/workspace/${workspaceId}`);
+}

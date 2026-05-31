@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import { ConfigProvider, App as AntApp, Layout, Menu, Button, Space, Typography, theme } from 'antd';
-import { KeyOutlined, HomeOutlined, MenuFoldOutlined, MenuUnfoldOutlined, LogoutOutlined, UserOutlined } from '@ant-design/icons';
+import { KeyOutlined, HomeOutlined, MenuFoldOutlined, MenuUnfoldOutlined, LogoutOutlined, UserOutlined, LinkOutlined } from '@ant-design/icons';
 import { useAuthStore } from '@/stores/auth';
 import { useQuickLinkShortcut } from '@/hooks/useQuickLinkShortcut';
 import QuickLinkPanel from '@/components/quick-link/QuickLinkPanel';
 import TokenPage from './pages/token';
+import QuickLinkPage from './pages/quick-link';
 import HomePage from './pages/home';
 import LoginPage from './pages/login';
 
@@ -15,6 +16,7 @@ const { Text } = Typography;
 const sidebarItems = [
   { key: '/', icon: <HomeOutlined />, label: <Link to="/">首页</Link> },
   { key: '/token', icon: <KeyOutlined />, label: <Link to="/token">密钥管理</Link> },
+  { key: '/quick-link', icon: <LinkOutlined />, label: <Link to="/quick-link">快捷链接</Link> },
 ];
 
 function AppLayout() {
@@ -94,6 +96,7 @@ function AppLayout() {
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/token" element={<TokenPage />} />
+            <Route path="/quick-link" element={<QuickLinkPage />} />
           </Routes>
         </Content>
       </Layout>
