@@ -11,7 +11,7 @@ import {
   Row,
   Col,
   DatePicker,
-  message,
+  App,
   Popconfirm,
   Card,
   Empty,
@@ -50,6 +50,7 @@ function mergeOptions(hardcoded: string[], fromData: (string | null | undefined)
 }
 
 export default function TokenPage() {
+  const { message } = App.useApp();
   const { tokens, loading, pagination, fetchTokens, createToken, updateToken, deleteToken, setPagination } =
     useTokenStore();
 
@@ -307,7 +308,7 @@ export default function TokenPage() {
         onOk={handleSubmit}
         onCancel={() => setModalOpen(false)}
         width={520}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item

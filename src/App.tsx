@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import { ConfigProvider, Layout, Menu, Button, Space, Typography, theme, Dropdown } from 'antd';
+import { ConfigProvider, App as AntApp, Layout, Menu, Button, Space, Typography, theme } from 'antd';
 import { KeyOutlined, HomeOutlined, MenuFoldOutlined, MenuUnfoldOutlined, LogoutOutlined, UserOutlined } from '@ant-design/icons';
 import { useAuthStore } from '@/stores/auth';
+import { useQuickLinkShortcut } from '@/hooks/useQuickLinkShortcut';
+import QuickLinkPanel from '@/components/quick-link/QuickLinkPanel';
 import TokenPage from './pages/token';
 import HomePage from './pages/home';
 import LoginPage from './pages/login';
@@ -19,6 +21,7 @@ function AppLayout() {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const { user, isLoggedIn, logout } = useAuthStore();
+  useQuickLinkShortcut();
 
   if (!isLoggedIn) {
     return <Navigate to="/login" replace />;
@@ -106,6 +109,7 @@ function AppLayout() {
       >
         Forge &copy; {new Date().getFullYear()}
       </Footer>
+      <QuickLinkPanel />
     </Layout>
   );
 }
@@ -124,12 +128,14 @@ export default function App() {
         algorithm: theme.defaultAlgorithm,
       }}
     >
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/*" element={<AppLayout />} />
-        </Routes>
-      </BrowserRouter>
+      <AntApp>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/*" element={<AppLayout />} />
+          </Routes>
+        </BrowserRouter>
+      </AntApp>
     </ConfigProvider>
   );
 }

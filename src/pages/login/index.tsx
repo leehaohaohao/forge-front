@@ -1,14 +1,21 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Form, Input, Button, Tabs, message } from 'antd';
+import { Card, Form, Input, Button, Tabs, App } from 'antd';
 import { UserOutlined, LockOutlined, PhoneOutlined } from '@ant-design/icons';
 import { useAuthStore } from '@/stores/auth';
 
 export default function LoginPage() {
+  const { message } = App.useApp();
   const navigate = useNavigate();
   const login = useAuthStore((s) => s.login);
   const register = useAuthStore((s) => s.register);
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
   const [loading, setLoading] = useState(false);
+
+  if (isLoggedIn) {
+    navigate('/', { replace: true });
+    return null;
+  }
 
   const handleLogin = async (values: { phone: string; password: string }) => {
     setLoading(true);
