@@ -225,9 +225,14 @@ export default function QuickLinkPage() {
       {/* Workspace Tabs */}
       <div style={{ padding: '16px 24px', borderBottom: '1px solid #f0f0f0' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <Text strong style={{ fontSize: 16 }}>
-            快捷链接管理
-          </Text>
+          <Space>
+            <Text strong style={{ fontSize: 16 }}>
+              快捷链接管理
+            </Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              按 Ctrl+Shift+K 快速打开链接面板
+            </Text>
+          </Space>
           {!isDefault && currentWorkspaceId && (
             <Popconfirm
               title="删除工作区将解除所有关联，链接本身保留，确定？"
