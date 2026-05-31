@@ -1,11 +1,14 @@
-import { useState } from 'react';
-import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { ConfigProvider, Layout, Menu, theme } from 'antd';
-import { KeyOutlined, HomeOutlined, MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
+import { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
+import { ConfigProvider, Layout, Menu, Button, Space, Typography, theme, Dropdown } from 'antd';
+import { KeyOutlined, HomeOutlined, MenuFoldOutlined, MenuUnfoldOutlined, LogoutOutlined, UserOutlined } from '@ant-design/icons';
+import { useAuthStore } from '@/stores/auth';
 import TokenPage from './pages/token';
 import HomePage from './pages/home';
+import LoginPage from './pages/login';
 
 const { Header, Sider, Content, Footer } = Layout;
+const { Text } = Typography;
 
 const sidebarItems = [
   { key: '/', icon: <HomeOutlined />, label: <Link to="/">首页</Link> },
@@ -15,6 +18,11 @@ const sidebarItems = [
 function AppLayout() {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
+  const { user, isLoggedIn, logout } = useAuthStore();
+
+  if (!isLoggedIn) {
+    return <Navigate to="/login" replace />;
+  }
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -33,6 +41,21 @@ function AppLayout() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ fontSize: 20, fontWeight: 600, color: '#1677ff' }}>Forge</div>
         </div>
+        <Space>
+          <Text type="secondary">
+            <UserOutlined style={{ marginRight: 4 }} />
+            {user?.username}
+          </Text>
+          <Button
+            type="text"
+            icon={<LogoutOutlined />}
+            onClick={() => {
+              logout();
+            }}
+          >
+            退出
+          </Button>
+        </Space>
       </Header>
       <Layout>
         <Sider
@@ -88,6 +111,12 @@ function AppLayout() {
 }
 
 export default function App() {
+  const initAuth = useAuthStore((s) => s.initAuth);
+
+  useEffect(() => {
+    initAuth();
+  }, []);
+
   return (
     <ConfigProvider
       theme={{
@@ -96,7 +125,10 @@ export default function App() {
       }}
     >
       <BrowserRouter>
-        <AppLayout />
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/*" element={<AppLayout />} />
+        </Routes>
       </BrowserRouter>
     </ConfigProvider>
   );

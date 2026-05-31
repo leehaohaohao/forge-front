@@ -28,7 +28,7 @@ import {
   KeyOutlined,
 } from '@ant-design/icons';
 import type { Token, TokenFormValues } from '@/types/token';
-import { getTokens, createToken, updateToken, deleteToken } from '@/services/token';
+import { useTokenStore } from '@/stores/tokens';
 import dayjs from 'dayjs';
 
 const { Text } = Typography;
@@ -50,13 +50,13 @@ function mergeOptions(hardcoded: string[], fromData: (string | null | undefined)
 }
 
 export default function TokenPage() {
-  const [tokens, setTokens] = useState<Token[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { tokens, loading, pagination, fetchTokens, createToken, updateToken, deleteToken, setPagination } =
+    useTokenStore();
+
   const [modalOpen, setModalOpen] = useState(false);
   const [editingToken, setEditingToken] = useState<Token | null>(null);
   const [form] = Form.useForm();
   const [searchForm] = Form.useForm();
-  const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
 
   const providerOptions = useMemo(() => {
     const hardcoded = PROVIDERS.map((p) => p.value);
@@ -71,23 +71,6 @@ export default function TokenPage() {
     return mergeOptions(CATEGORIES, tokens.map((t) => t.category));
   }, [tokens]);
 
-  const fetchTokens = async (params?: Record<string, unknown>) => {
-    setLoading(true);
-    try {
-      const res = await getTokens({
-        page: pagination.current,
-        page_size: pagination.pageSize,
-        ...params,
-      });
-      setTokens(res.data);
-      setPagination((prev) => ({ ...prev, total: res.total }));
-    } catch {
-      message.error('获取密钥列表失败');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
     fetchTokens();
   }, []);
@@ -100,7 +83,7 @@ export default function TokenPage() {
 
   const handleEdit = (record: Token) => {
     setEditingToken(record);
-    const wrapTags = (v: string | null | undefined) => v ? [v] : undefined;
+    const wrapTags = (v: string | null | undefined) => (v ? [v] : undefined);
     form.setFieldsValue({
       ...record,
       provider: wrapTags(record.provider),
@@ -115,7 +98,6 @@ export default function TokenPage() {
     try {
       await deleteToken(id);
       message.success('删除成功');
-      fetchTokens();
     } catch {
       message.error('删除失败');
     }
@@ -124,7 +106,7 @@ export default function TokenPage() {
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
-      const unwrapTags = (v: unknown) => Array.isArray(v) ? v[0] : v;
+      const unwrapTags = (v: unknown) => (Array.isArray(v) ? v[0] : v);
       const data: TokenFormValues = {
         ...values,
         provider: unwrapTags(values.provider),
@@ -142,7 +124,6 @@ export default function TokenPage() {
       }
 
       setModalOpen(false);
-      fetchTokens();
     } catch {
       message.error('操作失败');
     }
@@ -150,13 +131,13 @@ export default function TokenPage() {
 
   const handleSearch = () => {
     const values = searchForm.getFieldsValue();
-    setPagination((prev) => ({ ...prev, current: 1 }));
+    setPagination({ current: 1 });
     fetchTokens(values);
   };
 
   const handleReset = () => {
     searchForm.resetFields();
-    setPagination((prev) => ({ ...prev, current: 1 }));
+    setPagination({ current: 1 });
     fetchTokens();
   };
 
@@ -198,11 +179,9 @@ export default function TokenPage() {
       key: 'token_value',
       render: (text: string, record: Token) => (
         <Space>
-          <Text
-            code
-            style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}
-          >
-            {text.substring(0, record.mask_prefix_len || 6)}...{text.substring(text.length - (record.mask_suffix_len || 6))}
+          <Text code style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {text.substring(0, record.mask_prefix_len || 6)}...
+            {text.substring(text.length - (record.mask_suffix_len || 6))}
           </Text>
           <Tooltip title="复制">
             <Button
@@ -264,25 +243,19 @@ export default function TokenPage() {
   ];
 
   return (
-    <Card
-      style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
-      styles={{ body: { padding: 0 } }}
-    >
+    <Card style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }} styles={{ body: { padding: 0 } }}>
       <div style={{ padding: '16px 24px', borderBottom: '1px solid #f0f0f0' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-          <Text strong style={{ fontSize: 16 }}>密钥管理</Text>
+          <Text strong style={{ fontSize: 16 }}>
+            密钥管理
+          </Text>
           <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
             新增
           </Button>
         </div>
         <Form form={searchForm} layout="inline">
           <Form.Item name="keyword">
-            <Input
-              placeholder="搜索名称"
-              prefix={<SearchOutlined />}
-              style={{ width: 200 }}
-              allowClear
-            />
+            <Input placeholder="搜索名称" prefix={<SearchOutlined />} style={{ width: 200 }} allowClear />
           </Form.Item>
           <Form.Item name="provider">
             <Select
@@ -312,7 +285,7 @@ export default function TokenPage() {
         loading={loading}
         pagination={{ ...pagination, showSizeChanger: true, showTotal: (t) => `共 ${t} 条` }}
         onChange={(p) => {
-          setPagination((prev) => ({ ...prev, current: p.current, pageSize: p.pageSize }));
+          setPagination({ current: p.current, pageSize: p.pageSize });
           fetchTokens();
         }}
         locale={{
@@ -320,9 +293,7 @@ export default function TokenPage() {
             <Empty
               image={Empty.PRESENTED_IMAGE_SIMPLE}
               description={
-                <span style={{ color: '#8c8c8c' }}>
-                  还没有密钥，点击上方「新增」添加第一个
-                </span>
+                <span style={{ color: '#8c8c8c' }}>还没有密钥，点击上方「新增」添加第一个</span>
               }
             />
           ),
@@ -344,19 +315,9 @@ export default function TokenPage() {
             label="供应商"
             rules={[{ required: true, message: '请输入或选择供应商' }]}
           >
-            <Select
-              placeholder="输入或选择供应商"
-              options={providerOptions}
-              showSearch
-              mode="tags"
-              maxCount={1}
-            />
+            <Select placeholder="输入或选择供应商" options={providerOptions} showSearch mode="tags" maxCount={1} />
           </Form.Item>
-          <Form.Item
-            name="name"
-            label="名称"
-            rules={[{ required: true, message: '请输入名称' }]}
-          >
+          <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
             <Input placeholder="如：GPT-4 Key" />
           </Form.Item>
           <Form.Item

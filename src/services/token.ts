@@ -1,35 +1,8 @@
-import axios from 'axios';
-import { message } from 'antd';
+import api, { type ApiResponse, type PageData } from '@/lib/api';
 import type { Token, TokenFormValues, TokenQueryParams } from '@/types/token';
 
-interface ApiResponse<T> {
-  code: number;
-  message: string;
-  data: T;
-}
-
-interface PageData {
-  list: Token[];
-  total: number;
-  page: number;
-  page_size: number;
-}
-
-const api = axios.create({
-  baseURL: '/forge',
-});
-
-api.interceptors.response.use((res) => {
-  const body = res.data as ApiResponse<unknown>;
-  if (body.code !== 0) {
-    message.error(body.message || '请求失败');
-    return Promise.reject(new Error(body.message));
-  }
-  return res;
-});
-
 export async function getTokens(params?: TokenQueryParams) {
-  const res = await api.get<ApiResponse<PageData>>('/token', { params });
+  const res = await api.get<ApiResponse<PageData<Token>>>('/token', { params });
   const { list, total } = res.data.data;
   return { data: list, total };
 }
