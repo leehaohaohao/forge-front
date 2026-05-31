@@ -19,7 +19,7 @@ export default function QuickLinkPanel() {
   const [editingLink, setEditingLink] = useState<QuickLink | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const filteredLinks = useMemo(() => {
     if (!searchKeyword.trim()) return links;
