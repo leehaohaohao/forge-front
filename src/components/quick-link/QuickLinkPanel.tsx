@@ -126,15 +126,16 @@ export default function QuickLinkPanel() {
           zIndex: 1000,
           display: 'flex',
           justifyContent: 'center',
-          paddingTop: '12vh',
+          paddingTop: '10vh',
         }}
       >
         <div
           ref={panelRef}
           onKeyDown={handleKeyDown}
           style={{
-            width: 640,
-            maxHeight: '60vh',
+            width: '80vw',
+            maxWidth: 1200,
+            height: '80vh',
             background: '#fff',
             borderRadius: 12,
             boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
