@@ -23,6 +23,7 @@ import {
   FolderAddOutlined,
 } from '@ant-design/icons';
 import { useQuickLinkStore } from '@/stores/quickLinks';
+import { useSettingsStore } from '@/stores/settings';
 import AddLinkModal from '@/components/quick-link/AddLinkModal';
 import type { QuickLink } from '@/types/quickLink';
 
@@ -30,6 +31,7 @@ const { Text } = Typography;
 
 export default function QuickLinkPage() {
   const { message } = App.useApp();
+  const openInNewTab = useSettingsStore((s) => s.settings.quickLink.openInNewTab);
   const {
     workspaces,
     links,
@@ -165,7 +167,7 @@ export default function QuickLinkPage() {
       dataIndex: 'name',
       key: 'name',
       render: (text: string, record: QuickLink) => (
-        <Space style={{ cursor: 'pointer' }} onClick={() => window.open(record.url, '_blank')}>
+        <Space style={{ cursor: 'pointer' }} onClick={() => window.open(record.url, openInNewTab ? '_blank' : '_self')}>
           <LinkOutlined style={{ color: '#1677ff' }} />
           <Text strong style={{ color: '#1677ff' }}>{text}</Text>
         </Space>
