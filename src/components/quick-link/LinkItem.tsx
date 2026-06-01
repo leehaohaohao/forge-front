@@ -1,5 +1,4 @@
 import { Typography } from 'antd';
-import { LinkOutlined } from '@ant-design/icons';
 
 const { Text } = Typography;
 

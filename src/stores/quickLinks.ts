@@ -17,6 +17,7 @@ interface QuickLinkStore {
   setSearchKeyword: (keyword: string) => void;
   togglePanel: () => void;
   closePanel: () => void;
+  setPanelVisible: (visible: boolean) => void;
 
   createLink: (data: CreateLinkParams) => Promise<void>;
   updateLink: (id: number, data: UpdateLinkParams) => Promise<void>;
@@ -81,6 +82,18 @@ export const useQuickLinkStore = create<QuickLinkStore>((set, get) => ({
   },
 
   closePanel: () => set({ panelVisible: false, searchKeyword: '' }),
+
+  setPanelVisible: (visible) => {
+    if (visible) {
+      const { workspaces, fetchLinks } = get();
+      if (workspaces.length === 0) {
+        get().fetchWorkspaces().then(() => fetchLinks());
+      } else {
+        fetchLinks();
+      }
+    }
+    set({ panelVisible: visible, searchKeyword: '' });
+  },
 
   createLink: async (data) => {
     await quickLinkApi.createQuickLink(data);

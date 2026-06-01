@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Typography, Button } from 'antd';
 import { CloseOutlined, PlusOutlined } from '@ant-design/icons';
 import { useQuickLinkStore } from '@/stores/quickLinks';
+import { useSettingsStore } from '@/stores/settings';
 import type { QuickLink } from '@/types/quickLink';
 import WorkspaceSwitcher from './WorkspaceSwitcher';
 import LinkItem from './LinkItem';
@@ -13,6 +14,7 @@ const { Text } = Typography;
 export default function QuickLinkPanel() {
   const { panelVisible, links, searchKeyword, loading, closePanel, setSearchKeyword, fetchLinks, fetchWorkspaces } =
     useQuickLinkStore();
+  const openInNewTab = useSettingsStore((s) => s.settings.quickLink.openInNewTab);
 
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
@@ -64,10 +66,10 @@ export default function QuickLinkPanel() {
 
   const openLink = useCallback(
     (link: QuickLink) => {
-      window.open(link.url, '_blank');
+      window.open(link.url, openInNewTab ? '_blank' : '_self');
       closePanel();
     },
-    [closePanel],
+    [closePanel, openInNewTab],
   );
 
   const handleKeyDown = useCallback(

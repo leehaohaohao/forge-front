@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import { ConfigProvider, App as AntApp, Layout, Menu, Button, Space, Typography, theme } from 'antd';
-import { KeyOutlined, HomeOutlined, MenuFoldOutlined, MenuUnfoldOutlined, LogoutOutlined, UserOutlined, LinkOutlined } from '@ant-design/icons';
+import { KeyOutlined, HomeOutlined, MenuFoldOutlined, MenuUnfoldOutlined, LogoutOutlined, UserOutlined, LinkOutlined, SettingOutlined } from '@ant-design/icons';
 import { useAuthStore } from '@/stores/auth';
+import { useSettingsStore } from '@/stores/settings';
+import { useQuickLinkStore } from '@/stores/quickLinks';
 import { useQuickLinkShortcut } from '@/hooks/useQuickLinkShortcut';
 import QuickLinkPanel from '@/components/quick-link/QuickLinkPanel';
 import TokenPage from './pages/token';
 import QuickLinkPage from './pages/quick-link';
+import SettingsPage from './pages/settings';
 import HomePage from './pages/home';
 import LoginPage from './pages/login';
 
@@ -17,13 +20,30 @@ const sidebarItems = [
   { key: '/', icon: <HomeOutlined />, label: <Link to="/">首页</Link> },
   { key: '/token', icon: <KeyOutlined />, label: <Link to="/token">密钥管理</Link> },
   { key: '/quick-link', icon: <LinkOutlined />, label: <Link to="/quick-link">快捷链接</Link> },
+  { key: '/settings', icon: <SettingOutlined />, label: <Link to="/settings">网站设置</Link> },
 ];
 
 function AppLayout() {
   const location = useLocation();
-  const [collapsed, setCollapsed] = useState(false);
   const { user, isLoggedIn, logout } = useAuthStore();
+  const { settings, fetchSettings } = useSettingsStore();
+  const setPanelVisible = useQuickLinkStore((s) => s.setPanelVisible);
+  const [collapsed, setCollapsed] = useState(settings.theme.sidebarCollapsed);
   useQuickLinkShortcut();
+
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  useEffect(() => {
+    setCollapsed(settings.theme.sidebarCollapsed);
+  }, [settings.theme.sidebarCollapsed]);
+
+  useEffect(() => {
+    if (settings.quickLink.panelDefaultOpen) {
+      setPanelVisible(true);
+    }
+  }, [settings.quickLink.panelDefaultOpen]);
 
   if (!isLoggedIn) {
     return <Navigate to="/login" replace />;
@@ -97,6 +117,7 @@ function AppLayout() {
             <Route path="/" element={<HomePage />} />
             <Route path="/token" element={<TokenPage />} />
             <Route path="/quick-link" element={<QuickLinkPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </Content>
       </Layout>
