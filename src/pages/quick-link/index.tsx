@@ -9,7 +9,9 @@ import {
   Tag,
   Tooltip,
   Typography,
-  message,
+  Modal,
+  Input,
+  Form,
   App,
 } from 'antd';
 import {
@@ -17,8 +19,11 @@ import {
   MinusCircleOutlined,
   LinkOutlined,
   CopyOutlined,
+  PlusOutlined,
+  FolderAddOutlined,
 } from '@ant-design/icons';
 import { useQuickLinkStore } from '@/stores/quickLinks';
+import AddLinkModal from '@/components/quick-link/AddLinkModal';
 import type { QuickLink } from '@/types/quickLink';
 
 const { Text } = Typography;
@@ -37,12 +42,17 @@ export default function QuickLinkPage() {
     removeLinkFromWorkspace,
     batchAssignWorkspace,
     deleteWorkspace,
+    createWorkspace,
   } = useQuickLinkStore();
 
   const [selectedRowKeys, setSelectedRowKeys] = useState<number[]>([]);
   const [targetWorkspace, setTargetWorkspace] = useState<number | null>(null);
   const [assigning, setAssigning] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [addLinkOpen, setAddLinkOpen] = useState(false);
+  const [addWorkspaceOpen, setAddWorkspaceOpen] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState('');
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     fetchWorkspaces();
@@ -107,6 +117,22 @@ export default function QuickLinkPage() {
       message.success('工作区已删除');
     } catch {
       message.error('删除失败');
+    }
+  };
+
+  const handleAddWorkspace = async () => {
+    const name = workspaceName.trim();
+    if (!name) return;
+    setCreating(true);
+    try {
+      await createWorkspace(name);
+      message.success('工作区创建成功');
+      setAddWorkspaceOpen(false);
+      await fetchWorkspaces();
+    } catch {
+      message.error('创建失败');
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -233,16 +259,24 @@ export default function QuickLinkPage() {
               按 Ctrl+Shift+K 快速打开链接面板
             </Text>
           </Space>
-          {!isDefault && currentWorkspaceId && (
-            <Popconfirm
-              title="删除工作区将解除所有关联，链接本身保留，确定？"
-              onConfirm={() => handleDeleteWorkspace(currentWorkspaceId)}
-            >
-              <Button danger size="small">
-                删除此工作区
-              </Button>
-            </Popconfirm>
-          )}
+          <Space>
+            <Button type="primary" icon={<PlusOutlined />} size="small" onClick={() => setAddLinkOpen(true)}>
+              添加链接
+            </Button>
+            <Button icon={<FolderAddOutlined />} size="small" onClick={() => { setWorkspaceName(''); setAddWorkspaceOpen(true); }}>
+              添加工作区
+            </Button>
+            {!isDefault && currentWorkspaceId && (
+              <Popconfirm
+                title="删除工作区将解除所有关联，链接本身保留，确定？"
+                onConfirm={() => handleDeleteWorkspace(currentWorkspaceId)}
+              >
+                <Button danger size="small">
+                  删除此工作区
+                </Button>
+              </Popconfirm>
+            )}
+          </Space>
         </div>
         <Space>
           {tabItems.map((tab) => (
@@ -300,6 +334,27 @@ export default function QuickLinkPage() {
         locale={{ emptyText: '该工作区暂无链接' }}
         style={{ padding: '0 24px' }}
       />
+
+      <AddLinkModal open={addLinkOpen} onClose={() => setAddLinkOpen(false)} />
+      <Modal
+        title="添加工作区"
+        open={addWorkspaceOpen}
+        onOk={handleAddWorkspace}
+        onCancel={() => setAddWorkspaceOpen(false)}
+        confirmLoading={creating}
+        destroyOnHidden
+      >
+        <Form layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item label="工作区名称" required>
+            <Input
+              placeholder="输入工作区名称"
+              value={workspaceName}
+              onChange={(e) => setWorkspaceName(e.target.value)}
+              onPressEnter={handleAddWorkspace}
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
     </Card>
   );
 }
