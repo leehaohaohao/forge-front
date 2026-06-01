@@ -32,6 +32,7 @@ const { Text } = Typography;
 export default function QuickLinkPage() {
   const { message } = App.useApp();
   const openInNewTab = useSettingsStore((s) => s.settings.quickLink.openInNewTab);
+  const togglePanelShortcut = useSettingsStore((s) => s.settings.shortcuts.togglePanel);
   const {
     workspaces,
     links,
@@ -258,7 +259,7 @@ export default function QuickLinkPage() {
               快捷链接管理
             </Text>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              按 Ctrl+Shift+K 快速打开链接面板
+              按 {togglePanelShortcut} 快速打开链接面板
             </Text>
           </Space>
           <Space>
