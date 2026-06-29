@@ -56,7 +56,8 @@ export const useQuickLinkStore = create<QuickLinkStore>((set, get) => ({
     set({ loading: true });
     try {
       const wsId = workspaceId ?? get().currentWorkspaceId;
-      const links = await quickLinkApi.getQuickLinks(wsId ? { workspace_id: wsId } : undefined);
+      const isDefault = get().workspaces.find((w) => w.id === wsId)?.is_default;
+      const links = await quickLinkApi.getQuickLinks(wsId && !isDefault ? { workspace_id: wsId } : undefined);
       set({ links });
     } finally {
       set({ loading: false });
