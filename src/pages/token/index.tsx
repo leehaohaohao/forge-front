@@ -11,6 +11,7 @@ import {
   Row,
   Col,
   DatePicker,
+  Checkbox,
   App,
   Popconfirm,
   Card,
@@ -56,6 +57,7 @@ export default function TokenPage() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingToken, setEditingToken] = useState<Token | null>(null);
+  const [neverExpire, setNeverExpire] = useState(false);
   const [form] = Form.useForm();
   const [searchForm] = Form.useForm();
 
@@ -78,12 +80,14 @@ export default function TokenPage() {
 
   const handleAdd = () => {
     setEditingToken(null);
+    setNeverExpire(false);
     form.resetFields();
     setModalOpen(true);
   };
 
   const handleEdit = (record: Token) => {
     setEditingToken(record);
+    setNeverExpire(!record.expires_at);
     const wrapTags = (v: string | null | undefined) => (v ? [v] : undefined);
     form.setFieldsValue({
       ...record,
@@ -108,12 +112,22 @@ export default function TokenPage() {
     try {
       const values = await form.validateFields();
       const unwrapTags = (v: unknown) => (Array.isArray(v) ? v[0] : v);
+
+      let expiresAt: string | null | undefined;
+      if (neverExpire) {
+        expiresAt = null;
+      } else if (values.expires_at) {
+        expiresAt = values.expires_at.toISOString();
+      } else if (editingToken) {
+        expiresAt = undefined;
+      }
+
       const data: TokenFormValues = {
         ...values,
         provider: unwrapTags(values.provider),
         token_type: unwrapTags(values.token_type),
         category: unwrapTags(values.category),
-        expires_at: values.expires_at?.toISOString(),
+        expires_at: expiresAt,
       };
 
       if (editingToken) {
@@ -143,8 +157,20 @@ export default function TokenPage() {
   };
 
   const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    message.success('已复制');
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+      message.success('已复制');
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      message.success('已复制');
+    }
   };
 
   const getProviderColor = (provider: string) => {
@@ -369,8 +395,15 @@ export default function TokenPage() {
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item name="expires_at" label="过期时间">
-            <DatePicker showTime style={{ width: '100%' }} placeholder="留空则永不过期" />
+          <Form.Item label="过期时间">
+            <Checkbox checked={neverExpire} onChange={(e) => setNeverExpire(e.target.checked)}>
+              永不过期
+            </Checkbox>
+            {!neverExpire && (
+              <Form.Item name="expires_at" noStyle>
+                <DatePicker showTime style={{ width: '100%', marginTop: 8 }} placeholder="选择过期时间" />
+              </Form.Item>
+            )}
           </Form.Item>
           <Form.Item name="remark" label="备注">
             <Input.TextArea rows={2} placeholder="可选备注" />
