@@ -21,6 +21,7 @@ import {
   CopyOutlined,
   PlusOutlined,
   FolderAddOutlined,
+  EditOutlined,
 } from '@ant-design/icons';
 import { useQuickLinkStore } from '@/stores/quickLinks';
 import { useSettingsStore } from '@/stores/settings';
@@ -53,6 +54,7 @@ export default function QuickLinkPage() {
   const [assigning, setAssigning] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [addLinkOpen, setAddLinkOpen] = useState(false);
+  const [editingLink, setEditingLink] = useState<QuickLink | null>(null);
   const [addWorkspaceOpen, setAddWorkspaceOpen] = useState(false);
   const [workspaceName, setWorkspaceName] = useState('');
   const [creating, setCreating] = useState(false);
@@ -158,8 +160,20 @@ export default function QuickLinkPage() {
   };
 
   const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    message.success('已复制');
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+      message.success('已复制');
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      message.success('已复制');
+    }
   };
 
   const columns = [
@@ -218,9 +232,12 @@ export default function QuickLinkPage() {
     {
       title: '操作',
       key: 'action',
-      width: 120,
+      width: 160,
       render: (_: unknown, record: QuickLink) => (
         <Space>
+          <Tooltip title="编辑">
+            <Button type="text" icon={<EditOutlined />} onClick={() => { setEditingLink(record); setAddLinkOpen(true); }} />
+          </Tooltip>
           {isDefault ? (
             <Popconfirm title="删除后不可恢复，确定删除？" onConfirm={() => handleDeleteLink(record.id)}>
               <Tooltip title="删除">
@@ -263,7 +280,7 @@ export default function QuickLinkPage() {
             </Text>
           </Space>
           <Space>
-            <Button type="primary" icon={<PlusOutlined />} size="small" onClick={() => setAddLinkOpen(true)}>
+            <Button type="primary" icon={<PlusOutlined />} size="small" onClick={() => { setEditingLink(null); setAddLinkOpen(true); }}>
               添加链接
             </Button>
             <Button icon={<FolderAddOutlined />} size="small" onClick={() => { setWorkspaceName(''); setAddWorkspaceOpen(true); }}>
@@ -338,7 +355,11 @@ export default function QuickLinkPage() {
         style={{ padding: '0 24px' }}
       />
 
-      <AddLinkModal open={addLinkOpen} onClose={() => setAddLinkOpen(false)} />
+      <AddLinkModal
+        open={addLinkOpen}
+        onClose={() => { setAddLinkOpen(false); setEditingLink(null); }}
+        editingLink={editingLink}
+      />
       <Modal
         title="添加工作区"
         open={addWorkspaceOpen}
