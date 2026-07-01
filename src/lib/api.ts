@@ -40,7 +40,7 @@ api.interceptors.response.use(
       localStorage.removeItem('forge_token');
       localStorage.removeItem('forge_token_time');
       localStorage.removeItem('forge_user');
-      window.location.href = '/login';
+      window.location.href = '/app/login';
     }
     return Promise.reject(error);
   },

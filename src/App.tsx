@@ -17,10 +17,10 @@ const { Header, Sider, Content, Footer } = Layout;
 const { Text } = Typography;
 
 const sidebarItems = [
-  { key: '/', icon: <HomeOutlined />, label: <Link to="/">首页</Link> },
-  { key: '/token', icon: <KeyOutlined />, label: <Link to="/token">密钥管理</Link> },
-  { key: '/quick-link', icon: <LinkOutlined />, label: <Link to="/quick-link">快捷链接</Link> },
-  { key: '/settings', icon: <SettingOutlined />, label: <Link to="/settings">网站设置</Link> },
+  { key: '/app', icon: <HomeOutlined />, label: <Link to="/">首页</Link> },
+  { key: '/app/token', icon: <KeyOutlined />, label: <Link to="/token">密钥管理</Link> },
+  { key: '/app/quick-link', icon: <LinkOutlined />, label: <Link to="/quick-link">快捷链接</Link> },
+  { key: '/app/settings', icon: <SettingOutlined />, label: <Link to="/settings">网站设置</Link> },
 ];
 
 function AppLayout() {
@@ -153,7 +153,7 @@ export default function App() {
       }}
     >
       <AntApp>
-        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <BrowserRouter basename="/app" future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/*" element={<AppLayout />} />
