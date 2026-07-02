@@ -29,7 +29,7 @@ import {
   StopOutlined,
   LinkOutlined,
 } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useKnowledgeStore } from '@/stores/knowledge';
 import type { Space as SpaceType, Folder, Document } from '@/types/knowledge';
 
@@ -38,6 +38,7 @@ const { Text } = Typography;
 export default function KnowledgeSpacePage() {
   const { message } = App.useApp();
   const navigate = useNavigate();
+  const location = useLocation();
   const {
     spaces,
     currentSpaceId,
@@ -74,9 +75,8 @@ export default function KnowledgeSpacePage() {
   const [folderForm] = Form.useForm();
 
   useEffect(() => {
-    fetchSpaces();
-    fetchRootDocuments();
-  }, []);
+    setCurrentSpace(null);
+  }, [location.pathname]);
 
   const currentSpace = useMemo(() => spaces.find((s) => s.id === currentSpaceId), [spaces, currentSpaceId]);
 

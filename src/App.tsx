@@ -73,13 +73,13 @@ function AppLayout() {
           height: 56,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <div style={{ fontSize: 20, fontWeight: 600, color: '#1677ff' }}>Forge</div>
+        <div style={{ fontSize: 20, fontWeight: 600, color: '#1677ff', flexShrink: 0 }}>Forge</div>
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
           <Input.Search
             placeholder="搜索..."
             allowClear
             size="middle"
-            style={{ width: 280 }}
+            style={{ width: 400, maxWidth: '100%' }}
             onSearch={(value) => {
               if (value.trim()) navigate(`/knowledge/search?q=${encodeURIComponent(value.trim())}`);
             }}

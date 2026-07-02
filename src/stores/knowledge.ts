@@ -111,6 +111,7 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
       get().fetchDocuments({ space_id: id });
     } else {
       set({ folders: [] });
+      get().fetchSpaces();
       get().fetchRootDocuments();
     }
   },
