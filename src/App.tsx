@@ -117,7 +117,6 @@ function AppLayout() {
             mode="inline"
             selectedKeys={[location.pathname]}
             items={sidebarItems}
-            className="sidebar-menu"
             style={{ border: 'none' }}
           />
         </Sider>
@@ -165,6 +164,13 @@ export default function App() {
       theme={{
         token: { colorPrimary: '#1677ff', borderRadius: 8 },
         algorithm: theme.defaultAlgorithm,
+        components: {
+          Menu: {
+            itemSelectedBg: '#e6f4ff',
+            itemSelectedColor: '#1677ff',
+            itemActiveBg: '#f0f5ff',
+          },
+        },
       }}
     >
       <AntApp>
