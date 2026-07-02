@@ -51,6 +51,7 @@ interface KnowledgeState {
 
   setPagination: (pagination: Partial<{ current: number; pageSize: number }>) => void;
   clearDocument: () => void;
+  refreshList: () => Promise<void>;
 }
 
 export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
@@ -63,6 +64,19 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
   loading: false,
   pagination: { current: 1, pageSize: 10, total: 0 },
   comments: [],
+
+  // ========== 工具 ==========
+
+  refreshList: async () => {
+    const { currentSpaceId, currentFolderId } = get();
+    if (currentFolderId) {
+      await get().fetchDocuments({ folder_id: currentFolderId });
+    } else if (currentSpaceId) {
+      await get().fetchDocuments({ space_id: currentSpaceId });
+    } else {
+      await get().fetchRootDocuments();
+    }
+  },
 
   // ========== 空间 ==========
 
@@ -177,58 +191,38 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
 
   createDocument: async (data) => {
     await knowledgeApi.createDocument(data);
-    const { currentSpaceId, currentFolderId } = get();
-    if (currentFolderId) {
-      await get().fetchDocuments({ folder_id: currentFolderId });
-    } else if (currentSpaceId) {
-      await get().fetchDocuments({ space_id: currentSpaceId });
-    } else {
-      await get().fetchRootDocuments();
-    }
+    await get().refreshList();
   },
 
   updateDocument: async (id, data) => {
     await knowledgeApi.updateDocument(id, data);
+    await get().refreshList();
     const { currentDocument } = get();
-    if (currentDocument?.id === id) {
-      await get().fetchDocument(id);
-    }
+    if (currentDocument?.id === id) await get().fetchDocument(id);
   },
 
   deleteDocument: async (id) => {
     await knowledgeApi.deleteDocument(id);
-    const { currentSpaceId, currentFolderId } = get();
-    if (currentFolderId) {
-      await get().fetchDocuments({ folder_id: currentFolderId });
-    } else if (currentSpaceId) {
-      await get().fetchDocuments({ space_id: currentSpaceId });
-    } else {
-      await get().fetchRootDocuments();
-    }
+    await get().refreshList();
   },
 
   publishDocument: async (id) => {
     await knowledgeApi.publishDocument(id);
+    await get().refreshList();
     const { currentDocument } = get();
     if (currentDocument?.id === id) await get().fetchDocument(id);
   },
 
   unpublishDocument: async (id) => {
     await knowledgeApi.unpublishDocument(id);
+    await get().refreshList();
     const { currentDocument } = get();
     if (currentDocument?.id === id) await get().fetchDocument(id);
   },
 
   pinDocument: async (id) => {
     await knowledgeApi.pinDocument(id);
-    const { currentSpaceId, currentFolderId } = get();
-    if (currentFolderId) {
-      await get().fetchDocuments({ folder_id: currentFolderId });
-    } else if (currentSpaceId) {
-      await get().fetchDocuments({ space_id: currentSpaceId });
-    } else {
-      await get().fetchRootDocuments();
-    }
+    await get().refreshList();
   },
 
   fetchRecentDocuments: async () => {
