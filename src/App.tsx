@@ -117,6 +117,7 @@ function AppLayout() {
             mode="inline"
             selectedKeys={[location.pathname]}
             items={sidebarItems}
+            className="sidebar-menu"
             style={{ border: 'none' }}
           />
         </Sider>
@@ -162,13 +163,14 @@ export default function App() {
   return (
     <ConfigProvider
       theme={{
-        token: { colorPrimary: '#1677ff', borderRadius: 8 },
+        token: { colorPrimary: '#1677ff', borderRadius: 8, controlItemBgActive: '#e6f4ff', controlItemBgHover: '#f0f5ff' },
         algorithm: theme.defaultAlgorithm,
         components: {
           Menu: {
             itemSelectedBg: '#e6f4ff',
             itemSelectedColor: '#1677ff',
             itemActiveBg: '#f0f5ff',
+            subMenuItemBg: '#fff',
           },
         },
       }}
