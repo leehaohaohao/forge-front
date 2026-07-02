@@ -49,6 +49,12 @@ export interface Comment {
   children?: Comment[];
 }
 
+export interface DocumentDetail {
+  document: Document;
+  is_liked: boolean;
+  is_favorited: boolean;
+}
+
 export interface DocumentFormValues {
   title: string;
   content?: string;

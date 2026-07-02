@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import { ConfigProvider, App as AntApp, Layout, Menu, Button, Space, Typography, theme } from 'antd';
-import { KeyOutlined, HomeOutlined, MenuFoldOutlined, MenuUnfoldOutlined, LogoutOutlined, UserOutlined, LinkOutlined, SettingOutlined, ReadOutlined, StarOutlined, CompassOutlined } from '@ant-design/icons';
+import { KeyOutlined, HomeOutlined, MenuFoldOutlined, MenuUnfoldOutlined, LogoutOutlined, UserOutlined, LinkOutlined, SettingOutlined, ReadOutlined, CompassOutlined } from '@ant-design/icons';
 import { useAuthStore } from '@/stores/auth';
 import { useSettingsStore } from '@/stores/settings';
 import { useQuickLinkStore } from '@/stores/quickLinks';
@@ -16,7 +16,6 @@ import KnowledgeSpacePage from './pages/knowledge/space';
 import DocumentEditPage from './pages/knowledge/document/EditPage';
 import DocumentViewPage from './pages/knowledge/document/ViewPage';
 import KnowledgeSquarePage from './pages/knowledge/square';
-import KnowledgeFavoritesPage from './pages/knowledge/favorites';
 import GlobalSearch from './components/knowledge/GlobalSearch';
 
 const { Header, Sider, Content, Footer } = Layout;
@@ -28,7 +27,6 @@ const sidebarItems = [
   { key: '/app/quick-link', icon: <LinkOutlined />, label: <Link to="/quick-link">快捷链接</Link> },
   { key: '/app/knowledge', icon: <ReadOutlined />, label: <Link to="/knowledge">知识中心</Link> },
   { key: '/app/knowledge/square', icon: <CompassOutlined />, label: <Link to="/knowledge/square">知识广场</Link> },
-  { key: '/app/knowledge/favorites', icon: <StarOutlined />, label: <Link to="/knowledge/favorites">我的收藏</Link> },
   { key: '/app/settings', icon: <SettingOutlined />, label: <Link to="/settings">网站设置</Link> },
 ];
 
@@ -128,7 +126,6 @@ function AppLayout() {
             <Route path="/quick-link" element={<QuickLinkPage />} />
             <Route path="/knowledge" element={<KnowledgeSpacePage />} />
             <Route path="/knowledge/square" element={<KnowledgeSquarePage />} />
-            <Route path="/knowledge/favorites" element={<KnowledgeFavoritesPage />} />
             <Route path="/knowledge/document/new" element={<DocumentEditPage />} />
             <Route path="/knowledge/document/:id" element={<DocumentViewPage />} />
             <Route path="/knowledge/document/:id/edit" element={<DocumentEditPage />} />
@@ -155,10 +152,13 @@ function AppLayout() {
 
 export default function App() {
   const initAuth = useAuthStore((s) => s.initAuth);
+  const authReady = useAuthStore((s) => s.authReady);
 
   useEffect(() => {
     initAuth();
   }, []);
+
+  if (!authReady) return null;
 
   return (
     <ConfigProvider

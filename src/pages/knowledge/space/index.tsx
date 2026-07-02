@@ -28,6 +28,7 @@ import {
   SendOutlined,
   StopOutlined,
   LinkOutlined,
+  StarOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useKnowledgeStore } from '@/stores/knowledge';
@@ -59,6 +60,8 @@ export default function KnowledgeSpacePage() {
     setCurrentFolder,
     fetchDocuments,
     fetchRootDocuments,
+    fetchFavoriteDocuments,
+    setFavoritesMode,
     deleteDocument,
     publishDocument,
     unpublishDocument,
@@ -199,7 +202,9 @@ export default function KnowledgeSpacePage() {
     const items: { title: React.ReactNode; onClick: () => void }[] = [
       { title: <HomeOutlined />, onClick: () => setCurrentSpace(null) },
     ];
-    if (currentSpace) {
+    if (currentSpaceId === -1) {
+      items.push({ title: <span><StarOutlined style={{ color: '#faad14', marginRight: 4 }} />我的收藏</span>, onClick: () => {} });
+    } else if (currentSpace) {
       items.push({ title: <span>{currentSpace.name}</span>, onClick: () => setCurrentFolder(null) });
     }
     if (currentFolderId) {
@@ -207,7 +212,7 @@ export default function KnowledgeSpacePage() {
       if (folder) items.push({ title: <span>{folder.name}</span>, onClick: () => {} });
     }
     return items;
-  }, [currentSpace, currentFolderId, folders]);
+  }, [currentSpaceId, currentSpace, currentFolderId, folders]);
 
   // ========== 文档列表列 ==========
 
@@ -314,6 +319,19 @@ export default function KnowledgeSpacePage() {
             <HomeOutlined style={{ marginRight: 8 }} />
             <Text>根目录</Text>
           </div>
+          <div
+            style={{
+              padding: '8px 12px',
+              borderRadius: 6,
+              cursor: 'pointer',
+              background: currentSpaceId === -1 ? '#e6f4ff' : 'transparent',
+              marginBottom: 4,
+            }}
+            onClick={setFavoritesMode}
+          >
+            <StarOutlined style={{ marginRight: 8, color: '#faad14' }} />
+            <Text>我的收藏</Text>
+          </div>
           {spaces.map((space) => (
             <div
               key={space.id}
@@ -353,7 +371,7 @@ export default function KnowledgeSpacePage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Breadcrumb items={breadcrumbItems} />
               <Space>
-                {currentSpaceId && !currentFolderId && (
+                {currentSpaceId && currentSpaceId !== -1 && !currentFolderId && (
                   <Button icon={<FolderAddOutlined />} size="small" onClick={handleAddFolder}>
                     新建文件夹
                   </Button>
@@ -366,7 +384,7 @@ export default function KnowledgeSpacePage() {
           </div>
 
           {/* 文件夹列表 */}
-          {currentSpaceId && !currentFolderId && folders.length > 0 && (
+          {currentSpaceId && currentSpaceId !== -1 && !currentFolderId && folders.length > 0 && (
             <div style={{ padding: '12px 24px', borderBottom: '1px solid #f0f0f0' }}>
               <Text type="secondary" style={{ fontSize: 12, marginBottom: 8, display: 'block' }}>文件夹</Text>
               <Space size={[8, 8]} wrap>
@@ -406,6 +424,8 @@ export default function KnowledgeSpacePage() {
               setPagination({ current: p.current, pageSize: p.pageSize });
               if (currentFolderId) {
                 fetchDocuments({ folder_id: currentFolderId });
+              } else if (currentSpaceId === -1) {
+                fetchFavoriteDocuments();
               } else if (currentSpaceId) {
                 fetchDocuments({ space_id: currentSpaceId });
               } else {

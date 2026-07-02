@@ -3,6 +3,7 @@ import type {
   Space,
   Folder,
   Document,
+  DocumentDetail,
   Comment,
   DocumentFormValues,
   DocumentQueryParams,
@@ -66,7 +67,7 @@ export async function getRootDocuments(params?: { page?: number; page_size?: num
 }
 
 export async function getDocument(id: number) {
-  const res = await api.get<ApiResponse<Document>>(`/knowledge/document/${id}`);
+  const res = await api.get<ApiResponse<DocumentDetail>>(`/knowledge/document/${id}`);
   return res.data.data;
 }
 

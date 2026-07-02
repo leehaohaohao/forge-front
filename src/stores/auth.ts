@@ -11,6 +11,7 @@ interface AuthState {
   user: User | null;
   token: string | null;
   isLoggedIn: boolean;
+  authReady: boolean;
   login: (phone: string, password: string) => Promise<void>;
   register: (phone: string, password: string, username: string) => Promise<void>;
   logout: () => void;
@@ -26,6 +27,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   token: null,
   isLoggedIn: false,
+  authReady: false,
 
   login: async (phone, password) => {
     const res = await loginApi(phone, password);
@@ -51,13 +53,17 @@ export const useAuthStore = create<AuthState>((set) => ({
     const timeStr = localStorage.getItem(TOKEN_TIME_KEY);
     const userStr = localStorage.getItem(USER_KEY);
 
-    if (!token || !timeStr) return;
+    if (!token || !timeStr) {
+      set({ authReady: true });
+      return;
+    }
 
     const loginTime = Number(timeStr);
     if (Date.now() - loginTime > TOKEN_TTL) {
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(TOKEN_TIME_KEY);
       localStorage.removeItem(USER_KEY);
+      set({ authReady: true });
       return;
     }
 
@@ -68,6 +74,6 @@ export const useAuthStore = create<AuthState>((set) => ({
       // ignore
     }
 
-    set({ token, user, isLoggedIn: true });
+    set({ token, user, isLoggedIn: true, authReady: true });
   },
 }));

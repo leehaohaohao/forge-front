@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Space, Folder, Document, Comment, DocumentFormValues, DocumentQueryParams } from '@/types/knowledge';
+import type { Space, Folder, Document, DocumentDetail, Comment, DocumentFormValues, DocumentQueryParams } from '@/types/knowledge';
 import * as knowledgeApi from '@/services/knowledge';
 
 interface KnowledgeState {
@@ -12,6 +12,8 @@ interface KnowledgeState {
   // 文档
   documents: Document[];
   currentDocument: Document | null;
+  isLiked: boolean;
+  isFavorited: boolean;
   loading: boolean;
   pagination: { current: number; pageSize: number; total: number };
   // 评论
@@ -40,6 +42,7 @@ interface KnowledgeState {
   pinDocument: (id: number) => Promise<void>;
   fetchRecentDocuments: () => Promise<void>;
   fetchFavoriteDocuments: () => Promise<void>;
+  setFavoritesMode: () => void;
 
   likeDocument: (id: number) => Promise<void>;
   unlikeDocument: (id: number) => Promise<void>;
@@ -61,6 +64,8 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
   currentFolderId: null,
   documents: [],
   currentDocument: null,
+  isLiked: false,
+  isFavorited: false,
   loading: false,
   pagination: { current: 1, pageSize: 10, total: 0 },
   comments: [],
@@ -71,6 +76,8 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
     const { currentSpaceId, currentFolderId } = get();
     if (currentFolderId) {
       await get().fetchDocuments({ folder_id: currentFolderId });
+    } else if (currentSpaceId === -1) {
+      await get().fetchFavoriteDocuments();
     } else if (currentSpaceId) {
       await get().fetchDocuments({ space_id: currentSpaceId });
     } else {
@@ -185,9 +192,9 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
   },
 
   fetchDocument: async (id) => {
-    const doc = await knowledgeApi.getDocument(id);
-    set({ currentDocument: doc });
-    return doc;
+    const res = await knowledgeApi.getDocument(id);
+    set({ currentDocument: res.document, isLiked: res.is_liked, isFavorited: res.is_favorited });
+    return res.document;
   },
 
   createDocument: async (data) => {
@@ -254,26 +261,35 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
     }
   },
 
+  setFavoritesMode: () => {
+    set({ currentSpaceId: -1, currentFolderId: null, folders: [], pagination: { ...get().pagination, current: 1 } });
+    get().fetchFavoriteDocuments();
+  },
+
   // ========== 互动 ==========
 
   likeDocument: async (id) => {
     await knowledgeApi.likeDocument(id);
+    set({ isLiked: true });
     const { currentDocument } = get();
     if (currentDocument?.id === id) await get().fetchDocument(id);
   },
 
   unlikeDocument: async (id) => {
     await knowledgeApi.unlikeDocument(id);
+    set({ isLiked: false });
     const { currentDocument } = get();
     if (currentDocument?.id === id) await get().fetchDocument(id);
   },
 
   favoriteDocument: async (id) => {
     await knowledgeApi.favoriteDocument(id);
+    set({ isFavorited: true });
   },
 
   unfavoriteDocument: async (id) => {
     await knowledgeApi.unfavoriteDocument(id);
+    set({ isFavorited: false });
   },
 
   fetchComments: async (documentId) => {
@@ -298,5 +314,5 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
     set((state) => ({ pagination: { ...state.pagination, ...pagination } }));
   },
 
-  clearDocument: () => set({ currentDocument: null, comments: [] }),
+  clearDocument: () => set({ currentDocument: null, isLiked: false, isFavorited: false, comments: [] }),
 }));

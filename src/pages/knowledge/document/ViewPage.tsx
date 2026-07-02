@@ -24,6 +24,8 @@ export default function DocumentViewPage() {
   const { id } = useParams<{ id: string }>();
   const {
     currentDocument: doc,
+    isLiked,
+    isFavorited,
     fetchDocument,
     likeDocument,
     unlikeDocument,
@@ -31,8 +33,6 @@ export default function DocumentViewPage() {
     clearDocument,
   } = useKnowledgeStore();
 
-  const [liked, setLiked] = useState(false);
-  const [favorited, setFavorited] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
 
   useEffect(() => {
@@ -48,13 +48,11 @@ export default function DocumentViewPage() {
   const handleLike = async () => {
     if (!id) return;
     try {
-      if (liked) {
+      if (isLiked) {
         await unlikeDocument(Number(id));
-        setLiked(false);
         setLikeCount((c) => c - 1);
       } else {
         await likeDocument(Number(id));
-        setLiked(true);
         setLikeCount((c) => c + 1);
       }
     } catch {
@@ -65,13 +63,11 @@ export default function DocumentViewPage() {
   const handleFavorite = async () => {
     if (!id) return;
     try {
-      if (favorited) {
+      if (isFavorited) {
         await unfavoriteDocument(Number(id));
-        setFavorited(false);
         message.success('已取消收藏');
       } else {
         await favoriteDocument(Number(id));
-        setFavorited(true);
         message.success('已收藏');
       }
     } catch {
@@ -137,17 +133,17 @@ export default function DocumentViewPage() {
         <div style={{ display: 'flex', justifyContent: 'center', gap: 24, marginBottom: 32 }}>
           <Button
             size="large"
-            icon={liked ? <LikeFilled style={{ color: '#1677ff' }} /> : <LikeOutlined />}
+            icon={isLiked ? <LikeFilled style={{ color: '#1677ff' }} /> : <LikeOutlined />}
             onClick={handleLike}
           >
-            {liked ? '已点赞' : '点赞'}
+            {isLiked ? '已点赞' : '点赞'}
           </Button>
           <Button
             size="large"
-            icon={favorited ? <StarFilled style={{ color: '#faad14' }} /> : <StarOutlined />}
+            icon={isFavorited ? <StarFilled style={{ color: '#faad14' }} /> : <StarOutlined />}
             onClick={handleFavorite}
           >
-            {favorited ? '已收藏' : '收藏'}
+            {isFavorited ? '已收藏' : '收藏'}
           </Button>
         </div>
 
