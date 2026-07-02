@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Link, useLocation, useNavigate, Navigate } from 'react-router-dom';
-import { ConfigProvider, App as AntApp, Layout, Menu, Button, Space, Typography, theme, Input } from 'antd';
-import { KeyOutlined, HomeOutlined, MenuFoldOutlined, MenuUnfoldOutlined, LogoutOutlined, UserOutlined, LinkOutlined, SettingOutlined, ReadOutlined, StarOutlined, SearchOutlined } from '@ant-design/icons';
+import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
+import { ConfigProvider, App as AntApp, Layout, Menu, Button, Space, Typography, theme } from 'antd';
+import { KeyOutlined, HomeOutlined, MenuFoldOutlined, MenuUnfoldOutlined, LogoutOutlined, UserOutlined, LinkOutlined, SettingOutlined, ReadOutlined, StarOutlined } from '@ant-design/icons';
 import { useAuthStore } from '@/stores/auth';
 import { useSettingsStore } from '@/stores/settings';
 import { useQuickLinkStore } from '@/stores/quickLinks';
@@ -17,7 +17,7 @@ import DocumentEditPage from './pages/knowledge/document/EditPage';
 import DocumentViewPage from './pages/knowledge/document/ViewPage';
 import KnowledgeSquarePage from './pages/knowledge/square';
 import KnowledgeFavoritesPage from './pages/knowledge/favorites';
-import SearchPage from './pages/knowledge/search';
+import GlobalSearch from './components/knowledge/GlobalSearch';
 
 const { Header, Sider, Content, Footer } = Layout;
 const { Text } = Typography;
@@ -34,7 +34,6 @@ const sidebarItems = [
 
 function AppLayout() {
   const location = useLocation();
-  const navigate = useNavigate();
   const { user, isLoggedIn, logout } = useAuthStore();
   const { settings, fetchSettings } = useSettingsStore();
   const setPanelVisible = useQuickLinkStore((s) => s.setPanelVisible);
@@ -74,17 +73,7 @@ function AppLayout() {
         }}
       >
         <div style={{ fontSize: 20, fontWeight: 600, color: '#1677ff', flexShrink: 0 }}>Forge</div>
-        <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-          <Input.Search
-            placeholder="搜索..."
-            allowClear
-            size="middle"
-            style={{ width: 400, maxWidth: '100%' }}
-            onSearch={(value) => {
-              if (value.trim()) navigate(`/knowledge/search?q=${encodeURIComponent(value.trim())}`);
-            }}
-          />
-        </div>
+        <GlobalSearch />
         <Space>
           <Text type="secondary">
             <UserOutlined style={{ marginRight: 4 }} />
@@ -139,7 +128,6 @@ function AppLayout() {
             <Route path="/knowledge" element={<KnowledgeSpacePage />} />
             <Route path="/knowledge/square" element={<KnowledgeSquarePage />} />
             <Route path="/knowledge/favorites" element={<KnowledgeFavoritesPage />} />
-            <Route path="/knowledge/search" element={<SearchPage />} />
             <Route path="/knowledge/document/new" element={<DocumentEditPage />} />
             <Route path="/knowledge/document/:id" element={<DocumentViewPage />} />
             <Route path="/knowledge/document/:id/edit" element={<DocumentEditPage />} />
