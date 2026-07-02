@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import { ConfigProvider, App as AntApp, Layout, Menu, Button, Space, Typography, theme } from 'antd';
-import { KeyOutlined, HomeOutlined, MenuFoldOutlined, MenuUnfoldOutlined, LogoutOutlined, UserOutlined, LinkOutlined, SettingOutlined } from '@ant-design/icons';
+import { KeyOutlined, HomeOutlined, MenuFoldOutlined, MenuUnfoldOutlined, LogoutOutlined, UserOutlined, LinkOutlined, SettingOutlined, ReadOutlined, StarOutlined } from '@ant-design/icons';
 import { useAuthStore } from '@/stores/auth';
 import { useSettingsStore } from '@/stores/settings';
 import { useQuickLinkStore } from '@/stores/quickLinks';
@@ -12,6 +12,11 @@ import QuickLinkPage from './pages/quick-link';
 import SettingsPage from './pages/settings';
 import HomePage from './pages/home';
 import LoginPage from './pages/login';
+import KnowledgeSpacePage from './pages/knowledge/space';
+import DocumentEditPage from './pages/knowledge/document/EditPage';
+import DocumentViewPage from './pages/knowledge/document/ViewPage';
+import KnowledgeSquarePage from './pages/knowledge/square';
+import KnowledgeFavoritesPage from './pages/knowledge/favorites';
 
 const { Header, Sider, Content, Footer } = Layout;
 const { Text } = Typography;
@@ -20,6 +25,9 @@ const sidebarItems = [
   { key: '/app', icon: <HomeOutlined />, label: <Link to="/">首页</Link> },
   { key: '/app/token', icon: <KeyOutlined />, label: <Link to="/token">密钥管理</Link> },
   { key: '/app/quick-link', icon: <LinkOutlined />, label: <Link to="/quick-link">快捷链接</Link> },
+  { key: '/app/knowledge', icon: <ReadOutlined />, label: <Link to="/knowledge">知识中心</Link> },
+  { key: '/app/knowledge/square', icon: <ReadOutlined />, label: <Link to="/knowledge/square">知识广场</Link> },
+  { key: '/app/knowledge/favorites', icon: <StarOutlined />, label: <Link to="/knowledge/favorites">我的收藏</Link> },
   { key: '/app/settings', icon: <SettingOutlined />, label: <Link to="/settings">网站设置</Link> },
 ];
 
@@ -117,6 +125,12 @@ function AppLayout() {
             <Route path="/" element={<HomePage />} />
             <Route path="/token" element={<TokenPage />} />
             <Route path="/quick-link" element={<QuickLinkPage />} />
+            <Route path="/knowledge" element={<KnowledgeSpacePage />} />
+            <Route path="/knowledge/square" element={<KnowledgeSquarePage />} />
+            <Route path="/knowledge/favorites" element={<KnowledgeFavoritesPage />} />
+            <Route path="/knowledge/document/new" element={<DocumentEditPage />} />
+            <Route path="/knowledge/document/:id" element={<DocumentViewPage />} />
+            <Route path="/knowledge/document/:id/edit" element={<DocumentEditPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </Content>
