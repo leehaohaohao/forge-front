@@ -6,7 +6,11 @@
   "scripts": {
     "dev": "vite --mode dev",
     "build": "tsc -b && vite build --mode pro",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:vault": "node scripts/test-vault.mjs",
+    "build:vault": "tsc -b && vite build --mode vault-lab --config vite.vault.config.ts",
+    "test:vault:browsers": "node scripts/test-vault-browsers.cjs",
+    "preview:vault": "vite preview --mode vault-lab --config vite.vault.config.ts --port 4177 --strictPort"
   },
   "dependencies": {
     "@ant-design/icons": "^6.2.3",
@@ -18,6 +22,7 @@
     "antd": "^6.4.3",
     "axios": "^1.16.1",
     "dayjs": "^1.11.21",
+    "hash-wasm": "4.12.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-markdown": "^10.1.0",
@@ -31,6 +36,7 @@
     "@types/react-dom": "^19.2.3",
     "@types/react-syntax-highlighter": "^15.5.13",
     "@vitejs/plugin-react": "^4.7.0",
+    "playwright": "1.62.1",
     "typescript": "^6.0.3",
     "vite": "^5.4.21"
   }
