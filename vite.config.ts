@@ -6,7 +6,15 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd())
 
   return {
-    plugins: [react()],
+    plugins: [react(), {
+      name: 'production-content-security-policy',
+      transformIndexHtml(html) {
+        if (mode !== 'pro') return html;
+        // Styles remain inline for Ant Design; scripts never allow inline JS/eval.
+        const policy = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; connect-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'self'";
+        return html.replace('<meta charset="UTF-8" />', `<meta charset="UTF-8" /><meta http-equiv="Content-Security-Policy" content="${policy}" />`);
+      },
+    }],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, 'src'),

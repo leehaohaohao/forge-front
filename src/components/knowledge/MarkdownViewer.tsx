@@ -12,6 +12,7 @@ export default function MarkdownViewer({ content }: MarkdownViewerProps) {
     <div className="markdown-body" style={{ lineHeight: 1.8, fontSize: 15 }}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
+        skipHtml
         components={{
           code({ className, children, ...props }) {
             const match = /language-(\w+)/.exec(className || '');

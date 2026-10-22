@@ -1,3 +1,5 @@
+import { vaultSession } from '@/lib/vault/runtime';
+import { useTokenStore } from '@/stores/tokens';
 import { create } from 'zustand';
 import { loginApi, registerApi } from '@/services/auth';
 
@@ -30,6 +32,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   authReady: false,
 
   login: async (phone, password) => {
+    vaultSession.lock(); useTokenStore.getState().clear();
     const res = await loginApi(phone, password);
     localStorage.setItem(TOKEN_KEY, res.token);
     localStorage.setItem(TOKEN_TIME_KEY, String(Date.now()));
@@ -42,6 +45,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: () => {
+    vaultSession.lock(); useTokenStore.getState().clear();
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(TOKEN_TIME_KEY);
     localStorage.removeItem(USER_KEY);

@@ -15,6 +15,9 @@ export interface StorageAdapter<T> {
 }
 
 export function createCloudAdapter<T>(resource: string): StorageAdapter<T> {
+  if (/^(token|vault)(\/|$)/.test(resource.replace(/^\//, ''))) {
+    throw new Error('Use the dedicated vault/token ciphertext transport');
+  }
   return {
     async list(params) {
       const res = await api.get<ApiResponse<PageData<T>>>(`/${resource}`, { params });

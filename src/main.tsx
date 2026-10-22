@@ -1,3 +1,4 @@
+if (!location.pathname.startsWith('/app')) location.replace('/app');
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'

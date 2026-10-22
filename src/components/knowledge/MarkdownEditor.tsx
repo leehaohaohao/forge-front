@@ -9,7 +9,7 @@ interface MarkdownEditorProps {
 export default function MarkdownEditor({ value, onChange, height = 500 }: MarkdownEditorProps) {
   return (
     <div data-color-mode="light">
-      <MDEditor value={value} onChange={(v) => onChange(v || '')} height={height} />
+      <MDEditor value={value} onChange={(v) => onChange(v || '')} height={height} previewOptions={{ skipHtml: true }} />
     </div>
   );
 }

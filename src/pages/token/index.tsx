@@ -1,415 +1,102 @@
-import { useState, useEffect, useMemo } from 'react';
-import {
-  Table,
-  Button,
-  Space,
-  Modal,
-  Form,
-  Input,
-  InputNumber,
-  Select,
-  Row,
-  Col,
-  DatePicker,
-  Checkbox,
-  App,
-  Popconfirm,
-  Card,
-  Empty,
-  Tag,
-  Tooltip,
-  Typography,
-} from 'antd';
-import {
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  SearchOutlined,
-  CopyOutlined,
-  KeyOutlined,
-} from '@ant-design/icons';
-import type { Token, TokenFormValues } from '@/types/token';
-import { useTokenStore } from '@/stores/tokens';
+import { useEffect, useRef, useState } from 'react';
+import { Alert, App, Button, Card, DatePicker, Form, Input, Modal, Popconfirm, Space, Table, Tag, Typography, Checkbox } from 'antd';
+import { useLocation } from 'react-router-dom';
 import dayjs from 'dayjs';
-
-const { Text } = Typography;
-
-const PROVIDERS = [
-  { value: 'openai', label: 'OpenAI', color: '#10a37f' },
-  { value: 'anthropic', label: 'Anthropic', color: '#d4a574' },
-  { value: 'github', label: 'GitHub', color: '#333333' },
-  { value: 'aws', label: 'AWS', color: '#ff9900' },
-  { value: 'azure', label: 'Azure', color: '#0078d4' },
-  { value: 'other', label: '其他', color: '#8c8c8c' },
-];
-const TOKEN_TYPES = ['coding', 'billing', 'access', 'infra'];
-const CATEGORIES = ['密钥', '凭证', '证书', '其他'];
-
-function mergeOptions(hardcoded: string[], fromData: (string | null | undefined)[]) {
-  const unique = new Set([...hardcoded, ...fromData.filter(Boolean)]);
-  return Array.from(unique).map((v) => ({ value: v, label: v }));
-}
-
+import type { Token, TokenMetadata } from '@/types/token';
+import { useTokenStore } from '@/stores/tokens';
+import { deleteToken } from '@/services/token';
+import { operation, readSecret, saveSecret, vaultSession } from '@/lib/vault/runtime';
+import { vaultMessage } from '@/lib/vault/messages';
+import { utf8, requireThat } from '@/lib/vault/format';
+import VaultPanel from './VaultPanel';
 export default function TokenPage() {
-  const { message } = App.useApp();
-  const { tokens, loading, pagination, fetchTokens, createToken, updateToken, deleteToken, setPagination } =
-    useTokenStore();
-
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingToken, setEditingToken] = useState<Token | null>(null);
-  const [neverExpire, setNeverExpire] = useState(false);
-  const [form] = Form.useForm();
-  const [searchForm] = Form.useForm();
-
-  const providerOptions = useMemo(() => {
-    const hardcoded = PROVIDERS.map((p) => p.value);
-    return mergeOptions(hardcoded, tokens.map((t) => t.provider));
-  }, [tokens]);
-
-  const typeOptions = useMemo(() => {
-    return mergeOptions(TOKEN_TYPES, tokens.map((t) => t.token_type));
-  }, [tokens]);
-
-  const categoryOptions = useMemo(() => {
-    return mergeOptions(CATEGORIES, tokens.map((t) => t.category));
-  }, [tokens]);
-
-  useEffect(() => {
-    fetchTokens();
-  }, []);
-
-  const handleAdd = () => {
-    setEditingToken(null);
-    setNeverExpire(false);
-    form.resetFields();
-    setModalOpen(true);
-  };
-
-  const handleEdit = (record: Token) => {
-    setEditingToken(record);
-    setNeverExpire(!record.expires_at);
-    const wrapTags = (v: string | null | undefined) => (v ? [v] : undefined);
-    form.setFieldsValue({
-      ...record,
-      provider: wrapTags(record.provider),
-      token_type: wrapTags(record.token_type),
-      category: wrapTags(record.category),
-      expires_at: record.expires_at ? dayjs(record.expires_at) : undefined,
-    });
-    setModalOpen(true);
-  };
-
-  const handleDelete = async (id: number) => {
-    try {
-      await deleteToken(id);
-      message.success('删除成功');
-    } catch {
-      message.error('删除失败');
+  const {message}=App.useApp(),location=useLocation();
+  const {tokens,loading,pagination,fetchTokens,setPagination,clear}=useTokenStore();
+  const [form]=Form.useForm();
+  const [open,setOpen]=useState(false),[editing,setEditing]=useState<Token|null>(null),[never,setNever]=useState(false);
+  const [busy,setBusy]=useState(false),[query,setQuery]=useState(''),[provider,setProvider]=useState(''),[state,setState]=useState(vaultSession.state);
+  const [visible,setVisible]=useState(''),[copyReady,setCopyReady]=useState(false);
+  const copyValue=useRef(''),mutex=useRef(false),epoch=useRef(0),timer=useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const clearDisplay=()=>{clearTimeout(timer.current);copyValue.current='';setCopyReady(false);setVisible('');};
+  const close=()=>{form.resetFields();setOpen(false);setEditing(null);setNever(false);};
+  const refresh=()=>fetchTokens({keyword:query,provider:provider||undefined});
+  useEffect(()=>{
+    refresh().catch(e=>message.error(vaultMessage(e)));
+    const unsubscribe=vaultSession.subscribe(()=>{setState(vaultSession.state);if(vaultSession.state==='locked'){close();clearDisplay();}});
+    return ()=>{unsubscribe();vaultSession.lock();form.resetFields();copyValue.current='';clearTimeout(timer.current);clear();};
+  },[location.key]);
+  async function run(action:(op:ReturnType<typeof operation>)=>Promise<void>) {
+    if(mutex.current)return;mutex.current=true;setBusy(true);const op=operation();
+    try{await action(op);}catch(e){if(!op.signal.aborted){message.error(vaultMessage(e));await refresh().catch(()=>{});}}
+    finally{op.done();mutex.current=false;setBusy(false);}
+  }
+  function edit(t:Token|null) {
+    clearDisplay();form.resetFields();setEditing(t);setNever(t?false:true);
+    if(t)form.setFieldsValue({provider:t.provider,name:t.name,token_type:t.token_type,category:t.category,remark:t.remark,secret:''});
+    setOpen(true);
+  }
+  async function submit(op:ReturnType<typeof operation>) {
+    const d=await form.validateFields();op.guard();
+    const secret=d.secret??'';
+    if(!editing||secret!==''){const bytes=utf8(secret);try{requireThat(bytes.length>0&&bytes.length<=8192&&secret.trim());}finally{bytes.fill(0);}}
+    const data:TokenMetadata={provider:d.provider,name:d.name,token_type:d.token_type??'',category:d.category??'',remark:d.remark??'',
+      ...(never?{expires_at:null}:d.expires_at?{expires_at:d.expires_at.toISOString()}:{})};
+    form.setFieldValue('secret','');
+    await saveSecret(editing,data,secret);op.guard();close();await refresh();op.guard();message.success('保存成功');
+  }
+  async function show(t:Token,purpose:'view'|'copy',op:ReturnType<typeof operation>) {
+    clearDisplay();
+    const {context,envelope}=await readSecret(t,purpose,op.signal);op.guard();
+    const value=await vaultSession.decrypt(context,envelope);op.guard();epoch.current=vaultSession.epoch;
+    if(purpose==='view')setVisible(value);
+    else {
+      try{op.guard();await navigator.clipboard.writeText(value);op.guard();message.success('已复制');}
+      catch{op.guard();copyValue.current=value;setCopyReady(true);message.info('剪贴板未授权，请点击“确认复制”重试。');}
     }
-  };
-
-  const handleSubmit = async () => {
-    try {
-      const values = await form.validateFields();
-      const unwrapTags = (v: unknown) => (Array.isArray(v) ? v[0] : v);
-
-      let expiresAt: string | null | undefined;
-      if (neverExpire) {
-        expiresAt = null;
-      } else if (values.expires_at) {
-        expiresAt = values.expires_at.toISOString();
-      } else if (editingToken) {
-        expiresAt = undefined;
-      }
-
-      const data: TokenFormValues = {
-        ...values,
-        provider: unwrapTags(values.provider),
-        token_type: unwrapTags(values.token_type),
-        category: unwrapTags(values.category),
-        expires_at: expiresAt,
-      };
-
-      if (editingToken) {
-        await updateToken(editingToken.id, data);
-        message.success('更新成功');
-      } else {
-        await createToken(data);
-        message.success('创建成功');
-      }
-
-      setModalOpen(false);
-    } catch {
-      message.error('操作失败');
-    }
-  };
-
-  const handleSearch = () => {
-    const values = searchForm.getFieldsValue();
-    setPagination({ current: 1 });
-    fetchTokens(values);
-  };
-
-  const handleReset = () => {
-    searchForm.resetFields();
-    setPagination({ current: 1 });
-    fetchTokens();
-  };
-
-  const copyToClipboard = (text: string) => {
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(text);
-      message.success('已复制');
-    } else {
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      ta.style.position = 'fixed';
-      ta.style.left = '-9999px';
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-      message.success('已复制');
-    }
-  };
-
-  const getProviderColor = (provider: string) => {
-    return PROVIDERS.find((p) => p.value === provider)?.color || '#8c8c8c';
-  };
-
-  const columns = [
-    {
-      title: '名称',
-      dataIndex: 'name',
-      key: 'name',
-      render: (text: string, record: Token) => (
-        <Space>
-          <KeyOutlined style={{ color: getProviderColor(record.provider) }} />
-          <Text strong>{text}</Text>
-        </Space>
-      ),
-    },
-    {
-      title: '供应商',
-      dataIndex: 'provider',
-      key: 'provider',
-      width: 120,
-      render: (text: string) => (
-        <Tag color={getProviderColor(text)} style={{ borderRadius: 4 }}>
-          {PROVIDERS.find((p) => p.value === text)?.label || text}
-        </Tag>
-      ),
-    },
-    {
-      title: '密钥值',
-      dataIndex: 'token_value',
-      key: 'token_value',
-      render: (text: string, record: Token) => (
-        <Space>
-          <Text code style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {text.substring(0, record.mask_prefix_len || 6)}...
-            {text.substring(text.length - (record.mask_suffix_len || 6))}
-          </Text>
-          <Tooltip title="复制">
-            <Button
-              type="text"
-              size="small"
-              icon={<CopyOutlined />}
-              onClick={() => copyToClipboard(text)}
-            />
-          </Tooltip>
-        </Space>
-      ),
-    },
-    {
-      title: '类型',
-      dataIndex: 'token_type',
-      key: 'token_type',
-      width: 100,
-      render: (text: string) => text || '-',
-    },
-    {
-      title: '种类',
-      dataIndex: 'category',
-      key: 'category',
-      width: 100,
-      render: (text: string) => text || '-',
-    },
-    {
-      title: '过期时间',
-      dataIndex: 'expires_at',
-      key: 'expires_at',
-      width: 160,
-      render: (text: string | null) => {
-        if (!text) return <Text type="secondary">永不过期</Text>;
-        const isExpired = dayjs(text).isBefore(dayjs());
-        return (
-          <Text type={isExpired ? 'danger' : undefined}>
-            {dayjs(text).format('YYYY-MM-DD')}
-          </Text>
-        );
-      },
-    },
-    {
-      title: '操作',
-      key: 'action',
-      width: 120,
-      render: (_: unknown, record: Token) => (
-        <Space>
-          <Tooltip title="编辑">
-            <Button type="text" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
-          </Tooltip>
-          <Popconfirm title="确定删除？" onConfirm={() => handleDelete(record.id)}>
-            <Tooltip title="删除">
-              <Button type="text" danger icon={<DeleteOutlined />} />
-            </Tooltip>
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
-
-  return (
-    <Card style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }} styles={{ body: { padding: 0 } }}>
-      <div style={{ padding: '16px 24px', borderBottom: '1px solid #f0f0f0' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-          <Text strong style={{ fontSize: 16 }}>
-            密钥管理
-          </Text>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
-            新增
-          </Button>
-        </div>
-        <Form form={searchForm} layout="inline">
-          <Form.Item name="keyword">
-            <Input placeholder="搜索名称" prefix={<SearchOutlined />} style={{ width: 200 }} allowClear />
-          </Form.Item>
-          <Form.Item name="provider">
-            <Select
-              placeholder="供应商"
-              allowClear
-              style={{ width: 120 }}
-              options={providerOptions}
-              showSearch
-              popupMatchSelectWidth={false}
-            />
-          </Form.Item>
-          <Form.Item>
-            <Space>
-              <Button type="primary" onClick={handleSearch}>
-                搜索
-              </Button>
-              <Button onClick={handleReset}>重置</Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </div>
-
-      <Table
-        columns={columns}
-        dataSource={tokens}
-        rowKey="id"
-        loading={loading}
-        pagination={{ ...pagination, showSizeChanger: true, showTotal: (t) => `共 ${t} 条` }}
-        onChange={(p) => {
-          setPagination({ current: p.current, pageSize: p.pageSize });
-          fetchTokens();
-        }}
-        locale={{
-          emptyText: (
-            <Empty
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description={
-                <span style={{ color: '#8c8c8c' }}>还没有密钥，点击上方「新增」添加第一个</span>
-              }
-            />
-          ),
-        }}
-        style={{ padding: '0 24px' }}
-      />
-
-      <Modal
-        title={editingToken ? '编辑密钥' : '新增密钥'}
-        open={modalOpen}
-        onOk={handleSubmit}
-        onCancel={() => setModalOpen(false)}
-        width={520}
-        destroyOnHidden
-      >
-        <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item
-            name="provider"
-            label="供应商"
-            rules={[{ required: true, message: '请输入或选择供应商' }]}
-          >
-            <Select placeholder="输入或选择供应商" options={providerOptions} showSearch mode="tags" maxCount={1} />
-          </Form.Item>
-          <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
-            <Input placeholder="如：GPT-4 Key" />
-          </Form.Item>
-          <Form.Item
-            name="token_value"
-            label="密钥值"
-            rules={[{ required: true, message: '请输入密钥值' }]}
-            normalize={(value) => value?.trim()}
-          >
-            <Input.TextArea rows={2} placeholder="sk-..." />
-          </Form.Item>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item name="token_type" label="类型">
-                <Select
-                  placeholder="输入或选择类型"
-                  options={typeOptions}
-                  showSearch
-                  mode="tags"
-                  maxCount={1}
-                  allowClear
-                  popupMatchSelectWidth={false}
-                />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="category" label="种类">
-                <Select
-                  placeholder="输入或选择种类"
-                  options={categoryOptions}
-                  showSearch
-                  mode="tags"
-                  maxCount={1}
-                  allowClear
-                  popupMatchSelectWidth={false}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item name="mask_prefix_len" label="前缀展示长度" initialValue={6}>
-                <InputNumber min={0} max={20} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="mask_suffix_len" label="后缀展示长度" initialValue={6}>
-                <InputNumber min={0} max={20} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Form.Item label="过期时间">
-            <Checkbox checked={neverExpire} onChange={(e) => setNeverExpire(e.target.checked)}>
-              永不过期
-            </Checkbox>
-            {!neverExpire && (
-              <Form.Item name="expires_at" noStyle>
-                <DatePicker showTime style={{ width: '100%', marginTop: 8 }} placeholder="选择过期时间" />
-              </Form.Item>
-            )}
-          </Form.Item>
-          <Form.Item name="remark" label="备注">
-            <Input.TextArea rows={2} placeholder="可选备注" />
-          </Form.Item>
-        </Form>
-      </Modal>
+    timer.current=setTimeout(clearDisplay,30000);
+  }
+  function confirmCopy() {
+    if(mutex.current||!copyValue.current||!vaultSession.isCurrent(epoch.current)||vaultSession.state!=='unlocked')return;
+    // Invoke inside this click, without a preceding network/Worker await (Safari permission model).
+    mutex.current=true;setBusy(true);
+    const current=epoch.current;
+    navigator.clipboard?.writeText(copyValue.current).then(()=>{if(vaultSession.isCurrent(current)){clearDisplay();message.success('已复制');}})
+      .catch(()=>{if(vaultSession.isCurrent(current))message.error('剪贴板写入失败，请检查浏览器权限。');})
+      .finally(()=>{mutex.current=false;setBusy(false);});
+    if(!navigator.clipboard){mutex.current=false;setBusy(false);message.error('当前环境无法写入剪贴板，请使用 HTTPS。');}
+  }
+  return <Space orientation="vertical" size={16} style={{width:'100%'}} data-private="true" data-sentry-mask="true" className="ph-no-capture">
+    <VaultPanel/>
+    <Card title="密钥管理" extra={<Button type="primary" disabled={busy||state!=='unlocked'} onClick={()=>edit(null)}>新增密钥</Button>}>
+      <Alert type="warning" showIcon title="名称、供应商、分类和备注仍以明文保存，请勿填写秘密。历史记录需要完成本地迁移后才能查看、复制或替换。"/>
+      <Space style={{margin:'16px 0'}}><Input aria-label="搜索名称" placeholder="搜索名称" value={query} onChange={e=>setQuery(e.target.value)}/><Input aria-label="筛选供应商" placeholder="筛选供应商" value={provider} onChange={e=>setProvider(e.target.value)}/><Button disabled={busy} onClick={()=>{setPagination({current:1});refresh().catch(e=>message.error(vaultMessage(e)));}}>搜索</Button><Button disabled={busy} onClick={()=>{setQuery('');setProvider('');setPagination({current:1});fetchTokens().catch(e=>message.error(vaultMessage(e)));}}>重置</Button></Space>
+      <Table<Token> rowKey="id" dataSource={tokens} loading={loading} pagination={{...pagination,showSizeChanger:true}} onChange={p=>{setPagination({current:p.current,pageSize:p.pageSize});refresh().catch(e=>message.error(vaultMessage(e)));}} columns={[
+        {title:'名称',dataIndex:'name'},{title:'供应商',dataIndex:'provider'},{title:'类型',dataIndex:'token_type'},{title:'分类',dataIndex:'category'},
+        {title:'密钥',render:()=> <Typography.Text code>••••••••</Typography.Text>},
+        {title:'状态',render:(_,t)=><Tag color={t.encryption_state==='legacy_pending'?'orange':'green'}>{t.encryption_state==='legacy_pending'?'待迁移':'已加密'}</Tag>},
+        {title:'到期时间',render:(_,t)=>t.expires_at?<Typography.Text type={dayjs(t.expires_at).isBefore(dayjs())?'danger':undefined}>{dayjs(t.expires_at).format('YYYY-MM-DD')}</Typography.Text>:'永不过期'},
+        {title:'操作',render:(_,t)=><Space wrap>
+          <Button disabled={busy||state!=='unlocked'||t.encryption_state!=='client_encrypted'||!t.has_secret} onClick={()=>run(op=>show(t,'view',op))}>查看</Button>
+          <Button disabled={busy||state!=='unlocked'||t.encryption_state!=='client_encrypted'||!t.has_secret} onClick={()=>run(op=>show(t,'copy',op))}>复制</Button>
+          <Button disabled={busy} onClick={()=>edit(t)}>编辑</Button>
+          <Popconfirm title="删除此记录？" description="删除后不会清除已复制的剪贴板内容。" onConfirm={()=>run(async op=>{await deleteToken(t,op.signal);op.guard();await refresh();op.guard();message.success('删除成功');})}><Button danger disabled={busy}>删除</Button></Popconfirm>
+        </Space>},
+      ]}/>
     </Card>
-  );
+    <Modal title={editing?'编辑密钥':'新增密钥'} open={open} onCancel={close} onOk={()=>run(submit)} confirmLoading={busy} cancelButtonProps={{disabled:busy}} closable={!busy} maskClosable={!busy} keyboard={!busy} destroyOnHidden>
+      <Form form={form} layout="vertical" preserve={false} autoComplete="off">
+        <Form.Item name="provider" label="供应商" rules={[{required:true,whitespace:true},{max:50}]}><Input disabled={busy}/></Form.Item>
+        <Form.Item name="name" label="名称" rules={[{required:true,whitespace:true},{max:100}]}><Input disabled={busy}/></Form.Item>
+        <Form.Item name="secret" label={editing?'替换密钥（留空保留）':'业务密钥'}><Input.Password autoComplete="off" disabled={busy||state!=='unlocked'||editing?.encryption_state==='legacy_pending'}/></Form.Item>
+        <Form.Item name="token_type" label="类型" rules={[{max:50}]}><Input disabled={busy}/></Form.Item>
+        <Form.Item name="category" label="分类" rules={[{max:50}]}><Input disabled={busy}/></Form.Item>
+        <Checkbox disabled={busy} checked={never} onChange={e=>setNever(e.target.checked)}>清空到期时间（永不过期）</Checkbox>
+        {!never&&<Form.Item name="expires_at" label={editing?'新到期时间（不选则保留）':'到期时间'}><DatePicker showTime disabled={busy}/></Form.Item>}
+        <Form.Item name="remark" label="备注（请勿填写秘密）" rules={[{validator:(_,v)=>!v||utf8(v).length<=4096?Promise.resolve():Promise.reject(new Error('备注最多4096字节'))}]}><Input.TextArea disabled={busy}/></Form.Item>
+      </Form>
+    </Modal>
+    <Modal open={!!visible||copyReady} title={copyReady?'确认复制':'密钥（30秒后隐藏）'} onCancel={clearDisplay} footer={copyReady?<Button loading={busy} onClick={confirmCopy}>确认复制</Button>:<Button onClick={clearDisplay}>隐藏</Button>} destroyOnHidden>
+      {visible?<Typography.Paragraph style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{visible}</Typography.Paragraph>:<Typography.Paragraph>再次点击以授权剪贴板写入，内容不会在此显示。</Typography.Paragraph>}
+    </Modal>
+  </Space>;
 }
