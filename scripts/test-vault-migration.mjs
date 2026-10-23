@@ -1,0 +1,35 @@
+import {build} from 'esbuild';
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+const b=await build({entryPoints:['tools/vault-migrate.ts'],bundle:true,write:false,platform:'node',format:'esm'});
+const m=await import('data:text/javascript;base64,'+Buffer.from(b.outputFiles[0].contents).toString('base64'));
+const f=JSON.parse(await readFile('../forge/docs/testdata/token-vault-migration-v1-api-fixtures.json','utf8'));
+console.log('M1 fixture sections:',Object.keys(f).join(','));
+assert.equal(await m.digest(new TextEncoder().encode('abc')),'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
+assert.throws(()=>m.source(new TextEncoder().encode('{}')));
+assert.throws(()=>m.lines(new Uint8Array([255])));
+console.log('PASS digest and malformed source/encoding rejection');
+
+assert.equal(await m.envelopeDigest(f.stage_request.records[0].secret_envelope),f.envelope_sha256);
+const sr=f.source_record;
+const vault={user_id:sr.metadata.user_id,vault_id:f.stage_request.records[0].secret_envelope.vault_id,vault_key_version:1,dek_wrap_count:0};
+let batch={batch_id:f.batch_id,user_id:vault.user_id,vault_id:vault.vault_id,revision:'2',state:'exported',record_count:1,staged_count:0,verified_count:0};
+const src=m.source(new TextEncoder().encode(JSON.stringify({format:'forge-migration-source-v1',batch})+'\n'+JSON.stringify(sr)+'\n'));
+let record={...sr,secret_envelope:null,envelope_sha256:null,verified:false};delete record.legacy_value;
+const key=await crypto.subtle.generateKey({name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+let staged=0,receipts=0,lost=true;const seen=new Set();
+const api=async(path,body)=>{
+ if(path==='/vault')return {vault};
+ if(!body)return {batch:{...batch},records:[{...record}],next_after:null};
+ if(seen.has(body.request_id))return batch;
+ assert(!JSON.stringify(body).includes(sr.legacy_value));assert.equal(body.expected_revision,batch.revision);
+ seen.add(body.request_id);batch.revision=String(BigInt(batch.revision)+1n);
+ if(path.endsWith('/stage')){staged++;record.secret_envelope=body.records[0].secret_envelope;record.envelope_sha256=await m.envelopeDigest(record.secret_envelope);batch.staged_count=1;batch.state='staged';if(lost){lost=false;throw new Error('lost response');}}
+ else{receipts++;assert.equal(body.records[0].envelope_sha256,record.envelope_sha256);record.verified=true;batch.verified_count=1;batch.state='verified';}return batch;
+};
+await m.migrate(src,vault,key,api,async()=>'fixture');
+await m.migrate(src,vault,key,api,async()=>'fixture');
+assert.equal(staged,1);assert.equal(receipts,1);
+assert.equal((await m.verifyBackup(vault,[{metadata:sr.metadata,secret_envelope:null}],key,vault.user_id,1,1)).complete,false);
+record.envelope_sha256='0'.repeat(64);await assert.rejects(()=>m.migrate(src,vault,key,api,async()=>'fixture'));
+console.log('PASS M1 canonical hash, encrypted staging, lost-response idempotency, resume, local receipt verification, tamper rejection and incomplete backup');

@@ -11,7 +11,8 @@
     "build:vault": "tsc -b && vite build --mode vault-lab --config vite.vault.config.ts",
     "test:vault:browsers": "node scripts/test-vault-browsers.cjs",
     "preview:vault": "vite preview --mode vault-lab --config vite.vault.config.ts --port 4177 --strictPort",
-    "test:vault:page": "node scripts/test-vault-page.cjs"
+    "test:vault:page": "node scripts/test-vault-page.cjs",
+    "vault:local": "node scripts/vault-local.mjs"
   },
   "dependencies": {
     "@ant-design/icons": "6.2.3",
