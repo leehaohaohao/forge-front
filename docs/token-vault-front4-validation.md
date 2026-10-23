@@ -43,3 +43,15 @@
 第二台物理设备需现场接入同一测试服务进行恢复。已向用户请求配合，不将同机不同浏览器伪装为两台设备。因此完整前4签署仍待现场结果，不自动生产发布。
 
 复现真实服务脚本：FORGE_TEST_ORIGIN默认http://localhost:4185，FORGE_TEST_AUTH_FILE指向隔离测试账号令牌JSON（仅含token，不提交到Git）；运行node scripts/test-vault-real.cjs。需要系统Edge、Playwright Chromium及浏览器桌面权限。脚本会向系统剪贴板写入虚构测试值，不用于真实秘密。旧后5候选仍嵌入旧依赖，后续发布须重建配套候选，不能直接使用原候选。
+
+## Chrome原生生命周期复验：通过
+
+2026-10-23，Google Chrome 147.0.7727.56，全新临时用户目录及隔离浏览器上下文，真实Go测试服务。
+
+发现宿主真实标签切换时document.hasFocus()为false，但document.hidden仍为false。仅监听visibilitychange无法覆盖该环境，因此新增window.blur锁定兜底（销毁Worker、取消请求、清理页面），保留visibilitychange/pagehide原处理。产品说明已增加切换应用也会锁定；浏览器权限弹窗等导致失焦也可能需要重新解锁。
+
+scripts/test-vault-native.cjs实际打开同窗口第二个标签并激活，确认返回时保险库锁定；再次解锁后通过原生窗口最小化/恢复，确认锁定。没有设置document.hidden、没有dispatchEvent模拟生命周期。该脚本只用于本地虚构账号测试服务，签名材料是公开测试专用材料，禁止用于业务环境。
+
+原生隐藏锁定验收项现已关闭。不同物理设备不是方案强制前提：既有全新Chrome上下文、独立Edge/Chromium配置与全新Node恢复进程构成干净客户端证据，物理第二台设备列为补充兼容性测试，不再作为缺少硬件的发布阻挡项。
+
+此次关闭前4此前列出的客户端验证缺口，不代表生产HTTPS、真实用户迁移、发布容量和生产备份验收完成；后5仍需重建包含本提交的候选并按发布流程执行。

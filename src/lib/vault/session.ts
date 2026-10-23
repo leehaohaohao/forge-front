@@ -37,11 +37,12 @@ export class VaultSession {
       const leave=() => this.lock();
       document.addEventListener('visibilitychange',hide);
       window.addEventListener('pagehide',leave);
+      window.addEventListener('blur',leave);
       window.addEventListener('popstate',leave);
       window.addEventListener('pointerdown',activity);
       window.addEventListener('keydown',activity);
       this.stop=() => {
-        document.removeEventListener('visibilitychange',hide); window.removeEventListener('pagehide',leave);
+        document.removeEventListener('visibilitychange',hide); window.removeEventListener('pagehide',leave); window.removeEventListener('blur',leave);
         window.removeEventListener('popstate',leave); window.removeEventListener('pointerdown',activity); window.removeEventListener('keydown',activity);
       };
     }

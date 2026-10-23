@@ -40,7 +40,7 @@ export default function VaultPanel() {
     vaultSession.recoverySaved();setSaved(true);
   }
   return <Card title={<Space>个人保险库 <Typography.Text type="secondary">{state==='unlocked'?'已解锁':state==='pending'?'等待恢复材料验证':'已锁定'}</Typography.Text></Space>} extra={<Button onClick={()=>vaultSession.lock()}>锁定并清理</Button>}>
-    <Alert type="info" showIcon title="使用独立于登录密码的长口令。解锁密码和恢复材料只在本地处理。" description="查看30秒自动隐藏，5分钟无操作、切换标签页或离开本页会锁定。复制后内容留在系统剪贴板，请自行处理。丢失密码与恢复材料后无法找回。" />
+    <Alert type="info" showIcon title="使用独立于登录密码的长口令。解锁密码和恢复材料只在本地处理。" description="查看30秒自动隐藏，5分钟无操作、切换标签页、切换应用或离开本页会锁定。复制后内容留在系统剪贴板，请自行处理。丢失密码与恢复材料后无法找回。" />
     {info && !recovery && (state!=='unlocked'||mode!=='unlock') && <div style={{marginTop:16,maxWidth:560}}>
       {info.initialized && <Space wrap style={{marginBottom:12}}><Button disabled={busy} onClick={()=>{clear();setMode('unlock');}}>密码解锁</Button><Button disabled={busy} onClick={()=>{clear();setMode('recovery');}}>使用恢复材料</Button><Button disabled={busy} onClick={()=>{clear();setMode('password');}}>修改解锁密码</Button></Space>}
       {mode==='recovery'?<Input.Password aria-label="原恢复密钥" autoComplete="off" value={entry} onChange={e=>setEntry(e.target.value)} placeholder="原恢复密钥" disabled={busy}/>:<Input.Password aria-label="独立解锁密码" autoComplete="off" value={password} onChange={e=>setPassword(e.target.value)} placeholder={info.initialized?'独立解锁密码':'设置独立长口令（至少12个字符）'} disabled={busy}/>}
