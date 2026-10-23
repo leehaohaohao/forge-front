@@ -176,7 +176,7 @@ export default function App() {
       }}
     >
       <AntApp>
-        <BrowserRouter basename="/app" future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <BrowserRouter basename="/app">
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/*" element={<AppLayout />} />

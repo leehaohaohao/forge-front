@@ -25,3 +25,21 @@
 4. 正式HTTPS、响应头frame-ancestors、业务历史日志/备份处置及预发布容量压测。
 
 因此前4当前为“自动化回归及已发现校验缺口修复完成，完整验收待补齐”，不得据此放行后5生产发布。未创建PR，未合并。
+
+## 补充验收（2026-10-23，替代前述第1、3项未完成状态）
+
+真实Go服务：从当前后端源码构建，嵌入安全升级后的前端，4185端口，专用forge_browser_test库，使用独立forge-front4-mysql容器33317端口。测试账号77及全部材料均为虚构。未访问业务库。
+
+- scripts/test-vault-real.cjs：Edge155.0.4283.62与Chromium151.0.7922.34通过真实HTTP/Go/MySQL流程，无接口拦截。覆盖初始化、新增、元数据编辑、替换、查看、原生Clipboard API写入并读回、删除、手动锁定、真实Page.crash后重新打开页面锁定。
+- 两个全新浏览器配置独立解锁同一服务器保险库；这证明跨浏览器配置可恢复，不等同于第二台物理设备实测。
+- 真实HTML响应X-Frame-Options=DENY断言通过；构建HTML包含meta CSP。生产TLS/代理仍属于部署环境验收。
+- 实际日志秘密哨兵检查通过；测试账号非空旧token_value数量为0。
+- 升级axios1.20.0、react-router-dom7.18.4、Vite7.3.7及相关传递依赖；显式声明esbuild工具依赖。全量npm audit退出0、0漏洞；移除router旧future参数后生产构建通过，密码学/迁移测试和双浏览器完整页面回归均通过。
+- 独立子审查任务 independent_security_review 实际读代码与运行npm audit，未发现可复现P0/P1泄密路径。报告的P2分片无累计上限已修复：最多10000片/1000000条/512MiB原始字节，逐次push前核对实际累计记录不超过声明值。这是有界输入限制，不保证总进程内存低于512MiB。
+
+### 仍需现场完成
+
+已尝试原生Edge标签激活和窗口最小化，包括移除Playwright禁止后台行为的默认参数；当前宿主document.hidden始终false，不能据此宣称隐藏验收通过。已有受控visibilitychange清理回归通过，但不能取代此项。
+第二台物理设备需现场接入同一测试服务进行恢复。已向用户请求配合，不将同机不同浏览器伪装为两台设备。因此完整前4签署仍待现场结果，不自动生产发布。
+
+复现真实服务脚本：FORGE_TEST_ORIGIN默认http://localhost:4185，FORGE_TEST_AUTH_FILE指向隔离测试账号令牌JSON（仅含token，不提交到Git）；运行node scripts/test-vault-real.cjs。需要系统Edge、Playwright Chromium及浏览器桌面权限。脚本会向系统剪贴板写入虚构测试值，不用于真实秘密。旧后5候选仍嵌入旧依赖，后续发布须重建配套候选，不能直接使用原候选。
