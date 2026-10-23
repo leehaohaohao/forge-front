@@ -25,7 +25,9 @@ const context=(v:any,e:any)=>({user_id:v.user_id,vault_id:v.vault_id,vault_key_v
 export async function snapshot(api:any,batch:string) {
   const records:any[]=[];let after:string|undefined,view:any;
   do {const d=await api('/vault/migrations/'+batch+(after?'?after='+after:''));
-    if(view)requireThat(d.batch.revision===view.revision);else view=d.batch;
+    requireThat(d.batch.batch_id===batch);decimal(d.batch.revision);
+    if(view)requireThat(JSON.stringify(d.batch)===JSON.stringify(view));else view=d.batch;
+    requireThat(Array.isArray(d.records)&&d.records.length<=100&&records.length+d.records.length<=view.record_count);
     records.push(...d.records);const next=d.next_after; if(next!==null){decimal(next);requireThat(!after||BigInt(next)>BigInt(after));}after=next;
   }while(after);
   ordered(records);requireThat(records.length===view.record_count);return {batch:view,records};
@@ -60,7 +62,9 @@ export async function migrate(src:any,v:any,key:CryptoKey,api:any,reauth:()=>Pro
   requireThat(snap.batch.verified_count===src.records.length);return snap.batch;
 }
 export async function verifyBackup(v:any,records:any[],key:CryptoKey,user:string,count:number,legacy:number){
+  decimal(user);uuid(v.vault_id);requireThat(Number.isSafeInteger(count)&&count>=0&&Number.isSafeInteger(legacy)&&legacy>=0&&legacy<=count);
   requireThat(v.user_id===user&&records.length===count);ordered(records.map(r=>r.metadata));
-  let pending=0;for(const r of records){requireThat(r.metadata.user_id===user);if(r.metadata.encryption_state==='legacy_pending'){requireThat(r.secret_envelope===null);pending++;}else{requireThat(r.metadata.encryption_state==='client_encrypted');await decryptSecret(key,context(v,r.secret_envelope),r.secret_envelope);}}
+  const secrets=new Set<string>();
+  let pending=0;for(const r of records){requireThat(r.metadata.user_id===user);decimal(r.metadata.revision);requireThat(r.deleted_at===null||(typeof r.deleted_at==='string'&&!Number.isNaN(Date.parse(r.deleted_at))));if(r.metadata.encryption_state==='legacy_pending'){requireThat(r.secret_envelope===null);pending++;}else{requireThat(r.metadata.encryption_state==='client_encrypted'&&r.metadata.has_secret===true);requireThat(r.secret_envelope&&!secrets.has(r.secret_envelope.secret_id));secrets.add(r.secret_envelope.secret_id);await decryptSecret(key,context(v,r.secret_envelope),r.secret_envelope);}}
   requireThat(pending===legacy);return {records:count,legacy_pending:pending,complete:pending===0};
 }

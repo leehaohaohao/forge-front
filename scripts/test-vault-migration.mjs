@@ -30,6 +30,13 @@ const api=async(path,body)=>{
 await m.migrate(src,vault,key,api,async()=>'fixture');
 await m.migrate(src,vault,key,api,async()=>'fixture');
 assert.equal(staged,1);assert.equal(receipts,1);
-assert.equal((await m.verifyBackup(vault,[{metadata:sr.metadata,secret_envelope:null}],key,vault.user_id,1,1)).complete,false);
+assert.equal((await m.verifyBackup(vault,[{metadata:sr.metadata,deleted_at:null,secret_envelope:null}],key,vault.user_id,1,1)).complete,false);
 record.envelope_sha256='0'.repeat(64);await assert.rejects(()=>m.migrate(src,vault,key,api,async()=>'fixture'));
 console.log('PASS M1 canonical hash, encrypted staging, lost-response idempotency, resume, local receipt verification, tamper rejection and incomplete backup');
+
+const good={metadata:{...sr.metadata,encryption_state:'client_encrypted',has_secret:true},deleted_at:null,secret_envelope:record.secret_envelope};
+assert.equal((await m.verifyBackup(vault,[good],key,vault.user_id,1,0)).complete,true);
+await assert.rejects(()=>m.verifyBackup(vault,[good,{...good,metadata:{...good.metadata,id:String(BigInt(good.metadata.id)+1n)}}],key,vault.user_id,2,0));
+await assert.rejects(()=>m.verifyBackup(vault,[{...good,deleted_at:'invalid'}],key,vault.user_id,1,0));
+await assert.rejects(()=>m.snapshot(async()=>({batch:{...batch,batch_id:'wrong'},records:[],next_after:null}),batch.batch_id));
+console.log('PASS duplicate secret, invalid deletion state, wrong batch rejected');
