@@ -15,6 +15,7 @@ export function bindVault(v:VaultRead) { unlocked=v; }
 export function operation() {
   const epoch=vaultSession.epoch, controller=new AbortController(); requests.add(controller);
   return {signal:controller.signal,guard:()=>{if(controller.signal.aborted || !vaultSession.isCurrent(epoch)) throw new VaultError('STALE');},
+    cancel:()=>{controller.abort();requests.delete(controller);},
     done:()=>requests.delete(controller)};
 }
 export async function currentVault(signal:AbortSignal):Promise<VaultRead> {

@@ -3,7 +3,10 @@ import { Alert, Button, Card, Input, Space, Typography, App } from 'antd';
 import { bindVault, operation, vaultSession } from '@/lib/vault/runtime';
 import { readVault, reauthenticate, vaultTransport, type VaultStatus } from '@/services/vault';
 import { vaultMessage } from '@/lib/vault/messages';
-import type { RecoveryMaterial } from '@/lib/vault/types';
+import { VaultError, type RecoveryMaterial } from '@/lib/vault/types';
+import { ApiError } from '@/lib/api-error';
+type Operation = ReturnType<typeof operation>;
+type Lifetime = {active:boolean; operations:Set<Operation>};
 export default function VaultPanel() {
   const {message}=App.useApp();
   const [info,setInfo]=useState<VaultStatus>();
@@ -13,21 +16,42 @@ export default function VaultPanel() {
   const [recovery,setRecovery]=useState<RecoveryMaterial>();
   const [saved,setSaved]=useState(false),[verified,setVerified]=useState(false),[busy,setBusy]=useState(false);
   const mutex=useRef(false);
+  const lifetime=useRef<Lifetime | null>(null);
   const clear=()=>{setPassword('');setNext('');setEntry('');setAccount('');setRecovery(undefined);setSaved(false);setVerified(false);setMode('unlock');};
   useEffect(()=>{
-    const op=operation();
-    readVault(op.signal).then(v=>{op.guard();setInfo(v);}).catch(e=>{if(!op.signal.aborted) message.error(vaultMessage(e));}).finally(op.done);
+    // StrictMode replays setup/cleanup: each setup owns an independent lifetime.
+    const scope:Lifetime={active:true,operations:new Set()};
+    lifetime.current=scope;
+    const op=operation();scope.operations.add(op);
+    readVault(op.signal).then(v=>{
+      if(!scope.active)return;
+      op.guard();setInfo(v);
+    }).catch(e=>{
+      if(scope.active && !op.signal.aborted) message.error(vaultMessage(e));
+    }).finally(()=>{op.done();scope.operations.delete(op);});
     const unsubscribe=vaultSession.subscribe(()=>{
+      if(!scope.active)return;
       // Draft removal can be locked -> locked; subscribe to both pieces of UI state.
       setSession({state:vaultSession.state,pending:vaultSession.pendingConfirmation});
       if(vaultSession.state==='locked') clear();
     });
-    return ()=>{unsubscribe();op.done();};
+    return ()=>{
+      scope.active=false;unsubscribe();
+      scope.operations.forEach(request=>request.cancel());scope.operations.clear();
+      mutex.current=false;
+    };
   },[]);
-  async function run(action:(op:ReturnType<typeof operation>)=>Promise<void>) {
-    if(mutex.current)return;mutex.current=true;setBusy(true);const op=operation();
-    try {await action(op);}catch(e){message.error(vaultMessage(e));}
-    finally{op.done();mutex.current=false;setBusy(false);setPassword('');setNext('');setAccount('');}
+  async function run(action:(op:Operation)=>Promise<void>) {
+    const scope=lifetime.current;
+    if(!scope?.active || mutex.current)return;
+    mutex.current=true;setBusy(true);const op=operation();scope.operations.add(op);
+    try {await action(op);}catch(e){
+      const canceled=op.signal.aborted && ((e instanceof ApiError && e.kind==='canceled') || (e instanceof VaultError && e.code==='STALE'));
+      if(scope.active && !canceled) message.error(vaultMessage(e));
+    } finally {
+      op.done();scope.operations.delete(op);
+      if(scope.active && lifetime.current===scope){mutex.current=false;setBusy(false);setPassword('');setNext('');setAccount('');}
+    }
   }
   async function prepare(op:ReturnType<typeof operation>) {
     const latest=await readVault(op.signal);op.guard();setInfo(latest);
