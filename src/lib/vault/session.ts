@@ -28,7 +28,7 @@ export class VaultSession {
   private timer?: ReturnType<typeof setTimeout>;
   private stop?: () => void;
   private listeners=new Set<() => void>();
-  private draft?: {userId:string; vault:VaultConfig; revision?:string; verified:boolean; saved:boolean; pauseReason?:'blur'|'hidden'|'idle'};
+  private draft?: {userId:string; vault:VaultConfig; revision?:string; verified:boolean; saved:boolean; pauseReason?:'hidden'|'idle'};
   private status: 'locked'|'pending'|'unlocked' = 'locked';
   constructor(private idleMs=300000) {
     if (typeof window !== 'undefined') {
@@ -37,13 +37,13 @@ export class VaultSession {
       const leave=() => this.lock();
       document.addEventListener('visibilitychange',hide);
       window.addEventListener('pagehide',leave);
-      const blur=()=>this.suspend('blur');
-      window.addEventListener('blur',blur);
+      // Browser chrome (password prompts, downloads, address bar) also causes blur.
+      // Only actual page visibility/lifecycle changes should lock the vault.
       window.addEventListener('popstate',leave);
       window.addEventListener('pointerdown',activity);
       window.addEventListener('keydown',activity);
       this.stop=() => {
-        document.removeEventListener('visibilitychange',hide); window.removeEventListener('pagehide',leave); window.removeEventListener('blur',blur);
+        document.removeEventListener('visibilitychange',hide); window.removeEventListener('pagehide',leave);
         window.removeEventListener('popstate',leave); window.removeEventListener('pointerdown',activity); window.removeEventListener('keydown',activity);
       };
     }
@@ -81,8 +81,8 @@ export class VaultSession {
     const d=this.draft;
     return d ? {format_version:1 as const,user_id:d.userId,vault_id:d.vault.vault_id,saved:d.saved,pauseReason:d.pauseReason} : undefined;
   }
-  // Only encrypted wrappers and non-secret confirmation metadata survive focus loss.
-  suspend(reason?:'blur'|'hidden'|'idle') {
+  // Only encrypted wrappers and non-secret confirmation metadata survive suspension.
+  suspend(reason?:'hidden'|'idle') {
     if(this.draft && reason) this.draft.pauseReason=reason;
     this.lock('STALE',true);
   }
