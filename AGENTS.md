@@ -11,3 +11,5 @@
 - Commit incremental stages normally. Open a pull request only after the entire feature is complete; do not open a PR for each stage.
 - Merge only after required checks and review approval pass. Never bypass review or branch protection.
 - Preserve ignored local configuration, credentials, generated builds, and editor files; do not force-add them.
+
+- For every new bug fix, create a dedicated branch before editing (normally from the latest default branch). After the fix and its checks are complete, commit, push, and open a PR; do not merge without review and required checks.
