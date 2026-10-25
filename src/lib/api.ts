@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { message } from 'antd';
+import { normalizeApiError, type ApiError } from './api-error';
 
 export interface ApiResponse<T> {
   code: number;
@@ -26,25 +26,21 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+function rejectResponse(error: ApiError) {
+  if (error.kind === 'unauthorized') {
+    localStorage.removeItem('forge_token');
+    localStorage.removeItem('forge_token_time');
+    localStorage.removeItem('forge_user');
+    // Auth store clears memory and routes to login; vault listeners destroy keys.
+    window.dispatchEvent(new Event('forge-auth-invalid'));
+  }
+  return Promise.reject(error);
+}
+
+// Presentation belongs to the caller's App.useApp() instance, never this interceptor.
 api.interceptors.response.use(
-  (res) => {
-    const body = res.data as ApiResponse<unknown>;
-    if (body.code !== 0) {
-      message.error('请求失败，请刷新后重试');
-      return Promise.reject(new Error('REQUEST_FAILED'));
-    }
-    return res;
-  },
-  (error) => {
-    if (error.response?.status === 401 && error.response?.data?.code !== 40101) {
-      window.dispatchEvent(new Event('forge-auth-invalid'));
-      localStorage.removeItem('forge_token');
-      localStorage.removeItem('forge_token_time');
-      localStorage.removeItem('forge_user');
-      window.location.href = '/app/login';
-    }
-    return Promise.reject(error);
-  },
+  (res) => res.data?.code === 0 ? res : rejectResponse(normalizeApiError(undefined,res)),
+  (error) => rejectResponse(normalizeApiError(error)),
 );
 
 export default api;

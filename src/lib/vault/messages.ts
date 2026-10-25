@@ -1,14 +1,14 @@
-import { isAxiosError } from 'axios';
+import { ApiError, apiErrorMessage } from '../api-error';
 import { VaultError } from './types';
 export function vaultMessage(error:unknown) {
-  if(isAxiosError(error)) {
-    const code=error.response?.data?.code;
-    if(error.response?.status===409) return code===40903?'历史记录待迁移，暂时不能查看、复制或替换。':'数据已变更或提交结果不确定，已刷新列表。请核对后重新操作，不会自动覆盖。';
+  if(error instanceof ApiError) {
+    const code=error.businessCode;
+    if(error.kind==='conflict') return code===40903?'历史记录待迁移，暂时不能查看、复制或替换。':'数据已变更或提交结果不确定，已刷新列表。请核对后重新操作，不会自动覆盖。';
     if(code===40101) return '请重新验证账号身份，账号密码与保险库密码不同。';
-    if(error.response?.status===429) return '请求过于频繁，请稍后重试。';
-    if(error.response?.status===404) return '记录已删除或不可用，请刷新列表。';
-    if(error.code==='ERR_CANCELED') return '操作已取消，临时内容已清理。';
-    return '请求未完成，请检查连接后刷新核对结果。不会自动重试写入。';
+    if(error.kind==='rate-limit') return '请求过于频繁，请稍后重试。';
+    if(error.kind==='not-found') return '记录已删除或不可用，请刷新列表。';
+    if(error.kind==='canceled') return '操作已取消，临时内容已清理。';
+    return apiErrorMessage(error);
   }
   if(error instanceof VaultError) {
     if(error.code==='UNLOCK_FAILED') return '无法解锁，请检查密码或使用恢复材料';

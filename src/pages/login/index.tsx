@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { Card, Form, Input, Button, Tabs, App } from 'antd';
 import { UserOutlined, LockOutlined, PhoneOutlined } from '@ant-design/icons';
+import { apiErrorMessage } from '@/lib/api-error';
 import { useAuthStore } from '@/stores/auth';
 
 export default function LoginPage() {
@@ -22,8 +23,8 @@ export default function LoginPage() {
       await login(values.phone, values.password);
       message.success('登录成功');
       navigate('/');
-    } catch {
-      message.error('登录失败');
+    } catch (error) {
+      message.error(apiErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -34,8 +35,8 @@ export default function LoginPage() {
     try {
       await register(values.phone, values.password, values.username);
       message.success('注册成功，请登录');
-    } catch {
-      message.error('注册失败');
+    } catch (error) {
+      message.error(apiErrorMessage(error));
     } finally {
       setLoading(false);
     }
