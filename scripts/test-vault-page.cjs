@@ -51,6 +51,25 @@ for(const channel of (process.env.VAULT_BROWSERS||'chromium,msedge').split(','))
  });
  try {
   await page.clock.install(); await page.goto(base+'/app/token');
+  const discardLockedDraft=async(action)=>{
+    await page.evaluate(()=>window.dispatchEvent(new Event('blur')));
+    const field=page.getByLabel('草稿解锁密码',{exact:true});await field.waitFor();
+    assert.equal(await field.inputValue(),'');
+    // Do not type or otherwise change local component state before discarding.
+    await page.getByRole('button',{name:action,exact:true}).click();
+    await field.waitFor({state:'hidden'});
+    await page.getByRole('button',{name:'继续确认恢复材料',exact:true}).waitFor({state:'hidden'});
+    await page.getByLabel('独立解锁密码',{exact:true}).waitFor();
+  };
+  for(const savedFile of [false,true]) for(const action of ['放弃草稿','锁定并清理']) {
+    await page.getByLabel('独立解锁密码',{exact:true}).fill(password);
+    await page.getByRole('button',{name:'创建本地保险库',exact:true}).click();
+    await page.getByRole('button',{name:'下载恢复材料',exact:true}).waitFor();
+    if(savedFile){const download=page.waitForEvent('download');await page.getByRole('button',{name:'下载恢复材料',exact:true}).click();await download;}
+    await discardLockedDraft(action);
+    await page.getByRole('button',{name:'创建本地保险库',exact:true}).waitFor();
+    assert.equal(vault,null,'discard never publishes draft');
+  }
   await page.getByLabel('独立解锁密码',{exact:true}).fill(password);
   await page.getByRole('button',{name:'创建本地保险库',exact:true}).click();
   await page.getByRole('button',{name:'下载恢复材料',exact:true}).waitFor();
@@ -102,6 +121,13 @@ for(const channel of (process.env.VAULT_BROWSERS||'chromium,msedge').split(','))
   await page.clock.fastForward(300001);await page.getByText('已锁定',{exact:true}).waitFor();
   // Recover the same VK, persist new wrappers only after reentry and account reauthentication.
   const nextPassword='New fictional vault phrase 2026!';secrets.push(nextPassword);
+  for(const action of ['放弃草稿','锁定并清理']) {
+    const previous=JSON.stringify(vault);
+    await btn('修改解锁密码').click();await page.getByLabel('独立解锁密码',{exact:true}).fill(password);
+    await page.getByLabel('新的解锁密码',{exact:true}).fill(nextPassword);await btn('生成新恢复材料').click();
+    await btn('下载恢复材料').waitFor();await discardLockedDraft(action);
+    await btn('解锁').waitFor();assert.equal(JSON.stringify(vault),previous,'discard preserves server credentials');
+  }
   await btn('使用恢复材料').click();await page.getByLabel('原恢复密钥',{exact:true}).fill(material.recovery_key);
   await page.getByLabel('新的解锁密码',{exact:true}).fill(nextPassword);await btn('生成新恢复材料').click();
   const nextDownload=page.waitForEvent('download');await btn('下载恢复材料').click();

@@ -68,3 +68,12 @@ scripts/test-vault-native.cjs实际打开同窗口第二个标签并激活，确
 验证：生产构建、密码学测试、迁移测试通过；3 条和 201 条迁移覆盖分页、读取/写入 429、5 次/分钟重认证限制及断点恢复（使用虚拟时钟）。Chromium 生产页面全回归通过；实际 Chrome 147 原生标签切换后初始化及恢复草稿均可继续完成，保存的 vault_id 与原下载文件一致，无秘密写入请求或浏览器存储。Worker 测试覆盖错误草稿密码、重新验证门禁。知识页面浏览器测试覆盖收藏→取消→失败→重试→刷新状态。
 
 测试入口：`scripts/test-vault-page.cjs`（`VAULT_NATIVE=1 VAULT_BROWSERS=chrome` 可运行原生切换）、`scripts/test-vault-browsers.cjs`、`scripts/test-vault-migration.mjs`、`scripts/test-knowledge-favorite.cjs`。未合并或部署生产。
+
+
+## PR #1 第二轮复审修复（2026-10-25）
+
+修复 `47df1e6` 中的 P2：放弃已锁定草稿时，只有 session getter 变化、React 状态保持 locked，导致界面不刷新。VaultPanel 现在在每次会话通知中同时更新状态与待确认草稿快照，确保 locked → locked 的草稿删除也能刷新。
+
+新增生产页面 UI 回归：密码框保持空白、不触发其他输入，分别在恢复文件已下载/未下载时点击“放弃草稿”和“锁定并清理”，验证草稿输入与继续按钮立即消失并返回创建入口；已有保险库改密草稿分别通过两个按钮丢弃后返回正常解锁，服务端凭据不变。新增测试先在旧构建复现（草稿输入框隐藏断言超时），修复后通过。测试使用 fixture 接口与注入 blur，不涉及业务数据。
+
+生产构建及 Chromium 页面完整回归通过，保留原有草稿继续确认、密钥操作、限时隐藏、恢复和退出清理场景。未合并或部署。

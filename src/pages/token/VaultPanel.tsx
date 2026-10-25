@@ -7,7 +7,7 @@ import type { RecoveryMaterial } from '@/lib/vault/types';
 export default function VaultPanel() {
   const {message}=App.useApp();
   const [info,setInfo]=useState<VaultStatus>();
-  const [state,setState]=useState(vaultSession.state);
+  const [{state,pending},setSession]=useState(()=>({state:vaultSession.state,pending:vaultSession.pendingConfirmation}));
   const [mode,setMode]=useState<'unlock'|'password'|'recovery'>('unlock');
   const [password,setPassword]=useState(''),[next,setNext]=useState(''),[entry,setEntry]=useState(''),[account,setAccount]=useState('');
   const [recovery,setRecovery]=useState<RecoveryMaterial>();
@@ -17,7 +17,11 @@ export default function VaultPanel() {
   useEffect(()=>{
     const op=operation();
     readVault(op.signal).then(v=>{op.guard();setInfo(v);}).catch(e=>{if(!op.signal.aborted) message.error(vaultMessage(e));}).finally(op.done);
-    const unsubscribe=vaultSession.subscribe(()=>{setState(vaultSession.state);if(vaultSession.state==='locked') clear();});
+    const unsubscribe=vaultSession.subscribe(()=>{
+      // Draft removal can be locked -> locked; subscribe to both pieces of UI state.
+      setSession({state:vaultSession.state,pending:vaultSession.pendingConfirmation});
+      if(vaultSession.state==='locked') clear();
+    });
     return ()=>{unsubscribe();op.done();};
   },[]);
   async function run(action:(op:ReturnType<typeof operation>)=>Promise<void>) {
@@ -39,7 +43,6 @@ export default function VaultPanel() {
     const a=document.createElement('a');a.href=url;a.download='forge-recovery.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
     vaultSession.recoverySaved();setSaved(true);
   }
-  const pending=vaultSession.pendingConfirmation;
   return <Card title={<Space>个人保险库 <Typography.Text type="secondary">{state==='unlocked'?'已解锁':state==='pending'?'等待恢复材料验证':'已锁定'}</Typography.Text></Space>} extra={<Button onClick={()=>vaultSession.lock()}>锁定并清理</Button>}>
     <Alert type="info" showIcon title="使用独立于登录密码的长口令。解锁密码和恢复材料只在本地处理。" description="查看30秒自动隐藏，5分钟无操作、切换标签页、切换应用或离开本页会锁定。复制后内容留在系统剪贴板，请自行处理。丢失密码与恢复材料后无法找回。" />
     {info && !pending && !recovery && (state!=='unlocked'||mode!=='unlock') && <div style={{marginTop:16,maxWidth:560}}>
