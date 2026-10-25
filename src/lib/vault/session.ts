@@ -28,16 +28,16 @@ export class VaultSession {
   private timer?: ReturnType<typeof setTimeout>;
   private stop?: () => void;
   private listeners=new Set<() => void>();
-  private draft?: {userId:string; vault:VaultConfig; revision?:string; verified:boolean; saved:boolean};
+  private draft?: {userId:string; vault:VaultConfig; revision?:string; verified:boolean; saved:boolean; pauseReason?:'blur'|'hidden'|'idle'};
   private status: 'locked'|'pending'|'unlocked' = 'locked';
   constructor(private idleMs=300000) {
     if (typeof window !== 'undefined') {
-      const hide=() => { if (document.hidden) this.suspend(); };
+      const hide=() => { if (document.hidden) this.suspend('hidden'); };
       const activity=() => { if (this.status !== 'locked') this.touch(); };
       const leave=() => this.lock();
       document.addEventListener('visibilitychange',hide);
       window.addEventListener('pagehide',leave);
-      const blur=()=>this.suspend();
+      const blur=()=>this.suspend('blur');
       window.addEventListener('blur',blur);
       window.addEventListener('popstate',leave);
       window.addEventListener('pointerdown',activity);
@@ -55,7 +55,7 @@ export class VaultSession {
   private notify() { this.listeners.forEach(fn=>fn()); }
   private touch() {
     clearTimeout(this.timer);
-    this.timer=setTimeout(()=>this.suspend(),this.idleMs);
+    this.timer=setTimeout(()=>this.suspend('idle'),this.idleMs);
   }
   private call<T>(command:VaultCommand | {action:'activatePrepared'}): Promise<T> {
     if (typeof document !== 'undefined' && document.hidden) return Promise.reject(new VaultError('LOCKED'));
@@ -79,10 +79,13 @@ export class VaultSession {
   }
   get pendingConfirmation() {
     const d=this.draft;
-    return d ? {format_version:1 as const,user_id:d.userId,vault_id:d.vault.vault_id,saved:d.saved} : undefined;
+    return d ? {format_version:1 as const,user_id:d.userId,vault_id:d.vault.vault_id,saved:d.saved,pauseReason:d.pauseReason} : undefined;
   }
   // Only encrypted wrappers and non-secret confirmation metadata survive focus loss.
-  suspend() { this.lock('STALE',true); }
+  suspend(reason?:'blur'|'hidden'|'idle') {
+    if(this.draft && reason) this.draft.pauseReason=reason;
+    this.lock('STALE',true);
+  }
   async resumePrepared(password:string) {
     const draft=this.draft, epoch=this.generation;
     if (!draft || this.state!=='locked') throw new VaultError('STALE');
