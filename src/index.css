@@ -1,3 +1,19 @@
 html {
   scrollbar-gutter: stable;
 }
+
+/* 侧边栏选中项强调 — 双重选择器确保优先级 */
+.sidebar-menu.ant-menu .ant-menu-item-selected,
+.ant-layout-sider .ant-menu-item-selected {
+  background-color: #e6f4ff !important;
+}
+.sidebar-menu.ant-menu .ant-menu-item-selected a,
+.ant-layout-sider .ant-menu-item-selected a,
+.sidebar-menu.ant-menu .ant-menu-item-selected .anticon,
+.ant-layout-sider .ant-menu-item-selected .anticon {
+  color: #1677ff !important;
+}
+.sidebar-menu.ant-menu .ant-menu-item-selected::after,
+.ant-layout-sider .ant-menu-item-selected::after {
+  border-right-color: #1677ff !important;
+}

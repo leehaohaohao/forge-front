@@ -1,3 +1,5 @@
+import { vaultSession } from '@/lib/vault/runtime';
+import { useTokenStore } from '@/stores/tokens';
 import { create } from 'zustand';
 import { loginApi, registerApi } from '@/services/auth';
 
@@ -11,6 +13,7 @@ interface AuthState {
   user: User | null;
   token: string | null;
   isLoggedIn: boolean;
+  authReady: boolean;
   login: (phone: string, password: string) => Promise<void>;
   register: (phone: string, password: string, username: string) => Promise<void>;
   logout: () => void;
@@ -26,8 +29,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   token: null,
   isLoggedIn: false,
+  authReady: false,
 
   login: async (phone, password) => {
+    vaultSession.lock(); useTokenStore.getState().clear();
     const res = await loginApi(phone, password);
     localStorage.setItem(TOKEN_KEY, res.token);
     localStorage.setItem(TOKEN_TIME_KEY, String(Date.now()));
@@ -40,6 +45,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: () => {
+    vaultSession.lock(); useTokenStore.getState().clear();
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(TOKEN_TIME_KEY);
     localStorage.removeItem(USER_KEY);
@@ -51,13 +57,17 @@ export const useAuthStore = create<AuthState>((set) => ({
     const timeStr = localStorage.getItem(TOKEN_TIME_KEY);
     const userStr = localStorage.getItem(USER_KEY);
 
-    if (!token || !timeStr) return;
+    if (!token || !timeStr) {
+      set({ authReady: true });
+      return;
+    }
 
     const loginTime = Number(timeStr);
     if (Date.now() - loginTime > TOKEN_TTL) {
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(TOKEN_TIME_KEY);
       localStorage.removeItem(USER_KEY);
+      set({ authReady: true });
       return;
     }
 
@@ -68,6 +78,6 @@ export const useAuthStore = create<AuthState>((set) => ({
       // ignore
     }
 
-    set({ token, user, isLoggedIn: true });
+    set({ token, user, isLoggedIn: true, authReady: true });
   },
 }));

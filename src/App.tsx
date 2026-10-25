@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import { ConfigProvider, App as AntApp, Layout, Menu, Button, Space, Typography, theme } from 'antd';
-import { KeyOutlined, HomeOutlined, MenuFoldOutlined, MenuUnfoldOutlined, LogoutOutlined, UserOutlined, LinkOutlined, SettingOutlined } from '@ant-design/icons';
+import { KeyOutlined, HomeOutlined, MenuFoldOutlined, MenuUnfoldOutlined, LogoutOutlined, UserOutlined, LinkOutlined, SettingOutlined, ReadOutlined, CompassOutlined } from '@ant-design/icons';
 import { useAuthStore } from '@/stores/auth';
 import { useSettingsStore } from '@/stores/settings';
 import { useQuickLinkStore } from '@/stores/quickLinks';
@@ -12,6 +12,11 @@ import QuickLinkPage from './pages/quick-link';
 import SettingsPage from './pages/settings';
 import HomePage from './pages/home';
 import LoginPage from './pages/login';
+import KnowledgeSpacePage from './pages/knowledge/space';
+import DocumentEditPage from './pages/knowledge/document/EditPage';
+import DocumentViewPage from './pages/knowledge/document/ViewPage';
+import KnowledgeSquarePage from './pages/knowledge/square';
+import GlobalSearch from './components/knowledge/GlobalSearch';
 
 const { Header, Sider, Content, Footer } = Layout;
 const { Text } = Typography;
@@ -20,6 +25,8 @@ const sidebarItems = [
   { key: '/app', icon: <HomeOutlined />, label: <Link to="/">首页</Link> },
   { key: '/app/token', icon: <KeyOutlined />, label: <Link to="/token">密钥管理</Link> },
   { key: '/app/quick-link', icon: <LinkOutlined />, label: <Link to="/quick-link">快捷链接</Link> },
+  { key: '/app/knowledge', icon: <ReadOutlined />, label: <Link to="/knowledge">知识中心</Link> },
+  { key: '/app/knowledge/square', icon: <CompassOutlined />, label: <Link to="/knowledge/square">知识广场</Link> },
   { key: '/app/settings', icon: <SettingOutlined />, label: <Link to="/settings">网站设置</Link> },
 ];
 
@@ -63,9 +70,8 @@ function AppLayout() {
           height: 56,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ fontSize: 20, fontWeight: 600, color: '#1677ff' }}>Forge</div>
-        </div>
+        <div style={{ fontSize: 20, fontWeight: 600, color: '#1677ff', flexShrink: 0 }}>Forge</div>
+        <GlobalSearch />
         <Space>
           <Text type="secondary">
             <UserOutlined style={{ marginRight: 4 }} />
@@ -109,6 +115,7 @@ function AppLayout() {
             mode="inline"
             selectedKeys={[location.pathname]}
             items={sidebarItems}
+            className="sidebar-menu"
             style={{ border: 'none' }}
           />
         </Sider>
@@ -117,6 +124,11 @@ function AppLayout() {
             <Route path="/" element={<HomePage />} />
             <Route path="/token" element={<TokenPage />} />
             <Route path="/quick-link" element={<QuickLinkPage />} />
+            <Route path="/knowledge" element={<KnowledgeSpacePage />} />
+            <Route path="/knowledge/square" element={<KnowledgeSquarePage />} />
+            <Route path="/knowledge/document/new" element={<DocumentEditPage />} />
+            <Route path="/knowledge/document/:id" element={<DocumentViewPage />} />
+            <Route path="/knowledge/document/:id/edit" element={<DocumentEditPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </Content>
@@ -140,20 +152,31 @@ function AppLayout() {
 
 export default function App() {
   const initAuth = useAuthStore((s) => s.initAuth);
+  const authReady = useAuthStore((s) => s.authReady);
 
   useEffect(() => {
     initAuth();
   }, []);
 
+  if (!authReady) return null;
+
   return (
     <ConfigProvider
       theme={{
-        token: { colorPrimary: '#1677ff', borderRadius: 8 },
+        token: { colorPrimary: '#1677ff', borderRadius: 8, controlItemBgActive: '#e6f4ff', controlItemBgHover: '#f0f5ff' },
         algorithm: theme.defaultAlgorithm,
+        components: {
+          Menu: {
+            itemSelectedBg: '#e6f4ff',
+            itemSelectedColor: '#1677ff',
+            itemActiveBg: '#f0f5ff',
+            subMenuItemBg: '#fff',
+          },
+        },
       }}
     >
       <AntApp>
-        <BrowserRouter basename="/app" future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <BrowserRouter basename="/app">
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/*" element={<AppLayout />} />

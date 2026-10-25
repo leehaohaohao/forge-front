@@ -1,0 +1,130 @@
+{
+  "warning": "PUBLIC deterministic fixtures; NEVER use these keys/nonces/passwords in production",
+  "inputs": {
+    "dek_hex": "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f",
+    "kek_hex": "072e7354d70261b06895171595aec05d8f985e50736c90aaf38be411d5ec738f",
+    "new_kek_hex": "c43bc3bea7a040500263cd2311e663bf03496a1ea023b5040c3d99bacb2fb851",
+    "new_rk_hex": "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20",
+    "new_salt": "EBESExQVFhcYGRobHB0eHw==",
+    "nfc_kek_hex": "5dba1dad45e7e2a3abc2289541ed6359f481b0ef85ffe7a2d0f0032e78f6ac25",
+    "nfc_password": "Vault 密码 é 🔑 2026!",
+    "password": "Vault 密码 é 🔑 2026!",
+    "password_utf8_hex": "5661756c7420e5af86e7a0812065cc8120f09f9491203230323621",
+    "plaintext": "dummy-业务密钥-🔐-é-value",
+    "plaintext_utf8_hex": "64756d6d792de4b89ae58aa1e5af86e992a52df09f94902d65cc812d76616c7565",
+    "rk_hex": "606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f",
+    "rotated_vk_hex": "c0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedf",
+    "salt": "AAECAwQFBgcICQoLDA0ODw==",
+    "vk_hex": "202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f"
+  },
+  "operations": {
+    "dek_wrap": {
+      "key_hex": "202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
+      "nonce": "kJGSk5SVlpeYmZqb",
+      "plaintext_hex": "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f",
+      "aad": "[\"forge-vault\",\"dek-wrap\",\"1\",\"7\",\"11111111-1111-4111-8111-111111111111\",\"22222222-2222-4222-8222-222222222222\",\"1\",\"1\"]",
+      "aad_hex": "5b22666f7267652d7661756c74222c2264656b2d77726170222c2231222c2237222c2231313131313131312d313131312d343131312d383131312d313131313131313131313131222c2232323232323232322d323232322d343232322d383232322d323232323232323232323232222c2231222c2231225d",
+      "ciphertext": "GXieUN2wQyQg88uWe/FlRehfdbGLZkCN5rTE/uI2oz8e7rj5CoXQD8Q+tgtkas+3"
+    },
+    "password_wrap": {
+      "key_hex": "072e7354d70261b06895171595aec05d8f985e50736c90aaf38be411d5ec738f",
+      "nonce": "oKGio6Slpqeoqaqr",
+      "plaintext_hex": "202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
+      "aad": "[\"forge-vault\",\"password-wrap\",\"1\",\"7\",\"11111111-1111-4111-8111-111111111111\",\"1\",\"1\",\"argon2id\",\"19\",\"65536\",\"3\",\"4\",\"32\",\"AAECAwQFBgcICQoLDA0ODw==\"]",
+      "aad_hex": "5b22666f7267652d7661756c74222c2270617373776f72642d77726170222c2231222c2237222c2231313131313131312d313131312d343131312d383131312d313131313131313131313131222c2231222c2231222c226172676f6e326964222c223139222c223635353336222c2233222c2234222c223332222c2241414543417751464267634943516f4c4441304f44773d3d225d",
+      "ciphertext": "Q5cHhzWl4PRtCk+1VKT37eXdThJrorZeebgqe9fQWX7T+nC8SkXmfZrWKEQqhy2u"
+    },
+    "password_wrap_v2": {
+      "key_hex": "c43bc3bea7a040500263cd2311e663bf03496a1ea023b5040c3d99bacb2fb851",
+      "nonce": "4OHi4+Tl5ufo6err",
+      "plaintext_hex": "202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
+      "aad": "[\"forge-vault\",\"password-wrap\",\"1\",\"7\",\"11111111-1111-4111-8111-111111111111\",\"1\",\"2\",\"argon2id\",\"19\",\"65536\",\"3\",\"4\",\"32\",\"EBESExQVFhcYGRobHB0eHw==\"]",
+      "aad_hex": "5b22666f7267652d7661756c74222c2270617373776f72642d77726170222c2231222c2237222c2231313131313131312d313131312d343131312d383131312d313131313131313131313131222c2231222c2232222c226172676f6e326964222c223139222c223635353336222c2233222c2234222c223332222c2245424553457851564668635947526f624842306548773d3d225d",
+      "ciphertext": "KD9lkcleZiKEE2lPHVd3VUr4OZ7AAjx7Utwjk7WK6sv5XifPzL2awoktB9jlf+qk"
+    },
+    "recovery_wrap": {
+      "key_hex": "606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f",
+      "nonce": "sLGys7S1tre4ubq7",
+      "plaintext_hex": "202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
+      "aad": "[\"forge-vault\",\"recovery-wrap\",\"1\",\"7\",\"11111111-1111-4111-8111-111111111111\",\"1\",\"1\"]",
+      "aad_hex": "5b22666f7267652d7661756c74222c227265636f766572792d77726170222c2231222c2237222c2231313131313131312d313131312d343131312d383131312d313131313131313131313131222c2231222c2231225d",
+      "ciphertext": "xhTDti20FFv5cwKc9jmn8FT2MZckqYi19kCametePhZm3rdQjToqfff7BKgp1zS6"
+    },
+    "recovery_wrap_v2": {
+      "key_hex": "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20",
+      "nonce": "8PHy8/T19vf4+fr7",
+      "plaintext_hex": "202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
+      "aad": "[\"forge-vault\",\"recovery-wrap\",\"1\",\"7\",\"11111111-1111-4111-8111-111111111111\",\"1\",\"2\"]",
+      "aad_hex": "5b22666f7267652d7661756c74222c227265636f766572792d77726170222c2231222c2237222c2231313131313131312d313131312d343131312d383131312d313131313131313131313131222c2231222c2232225d",
+      "ciphertext": "EH+uHrjtO3HAHBVpERPaDJqp5aS3QTYOlIHWPud/+wm2CBQtsVbLAqqVwMZlGuE9"
+    },
+    "replacement_dek_wrap": {
+      "key_hex": "202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
+      "nonce": "KCkqKywtLi8wMTIz",
+      "plaintext_hex": "030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122",
+      "aad": "[\"forge-vault\",\"dek-wrap\",\"1\",\"7\",\"11111111-1111-4111-8111-111111111111\",\"22222222-2222-4222-8222-222222222222\",\"2\",\"1\"]",
+      "aad_hex": "5b22666f7267652d7661756c74222c2264656b2d77726170222c2231222c2237222c2231313131313131312d313131312d343131312d383131312d313131313131313131313131222c2232323232323232322d323232322d343232322d383232322d323232323232323232323232222c2232222c2231225d",
+      "ciphertext": "R9sP9pHHqHqABgK2dSFHgkVdfb+Bc3QT+xl4yJ2OeIlzLT4WqZaHIg99Sexhssf7"
+    },
+    "replacement_secret": {
+      "key_hex": "030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122",
+      "nonce": "FBUWFxgZGhscHR4f",
+      "plaintext_hex": "64756d6d792d7265706c6163656d656e742de4b89ae58aa1e580bc",
+      "aad": "[\"forge-vault\",\"secret\",\"1\",\"7\",\"11111111-1111-4111-8111-111111111111\",\"22222222-2222-4222-8222-222222222222\",\"2\"]",
+      "aad_hex": "5b22666f7267652d7661756c74222c22736563726574222c2231222c2237222c2231313131313131312d313131312d343131312d383131312d313131313131313131313131222c2232323232323232322d323232322d343232322d383232322d323232323232323232323232222c2232225d",
+      "ciphertext": "48/I8tXUH9U3g8LlpHwGrMj+4kXlGP1jnF2cgxZ58fqQKMtHW/ODzbcFVQ=="
+    },
+    "rotated_dek_wrap": {
+      "key_hex": "c0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedf",
+      "nonce": "0NHS09TV1tfY2drb",
+      "plaintext_hex": "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f",
+      "aad": "[\"forge-vault\",\"dek-wrap\",\"1\",\"7\",\"11111111-1111-4111-8111-111111111111\",\"22222222-2222-4222-8222-222222222222\",\"1\",\"2\"]",
+      "aad_hex": "5b22666f7267652d7661756c74222c2264656b2d77726170222c2231222c2237222c2231313131313131312d313131312d343131312d383131312d313131313131313131313131222c2232323232323232322d323232322d343232322d383232322d323232323232323232323232222c2231222c2232225d",
+      "ciphertext": "lvCSj6EPHG1BeLz71L2GJPWs0RD2cmAZSrHXttXC4oc1oxMiwIvYT2CiTWf6Mekw"
+    },
+    "secret": {
+      "key_hex": "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f",
+      "nonce": "gIGCg4SFhoeIiYqL",
+      "plaintext_hex": "64756d6d792de4b89ae58aa1e5af86e992a52df09f94902d65cc812d76616c7565",
+      "aad": "[\"forge-vault\",\"secret\",\"1\",\"7\",\"11111111-1111-4111-8111-111111111111\",\"22222222-2222-4222-8222-222222222222\",\"1\"]",
+      "aad_hex": "5b22666f7267652d7661756c74222c22736563726574222c2231222c2237222c2231313131313131312d313131312d343131312d383131312d313131313131313131313131222c2232323232323232322d323232322d343232322d383232322d323232323232323232323232222c2231225d",
+      "ciphertext": "SSvTqltZzjvyjxqJlw0Ty2pZ5CLS83Y5m0L5+ad0DQl2aDxTMFGQo0uUMhMJIOxOxQ=="
+    }
+  },
+  "secret_envelope": {
+    "algorithm": "AES-256-GCM",
+    "ciphertext": "SSvTqltZzjvyjxqJlw0Ty2pZ5CLS83Y5m0L5+ad0DQl2aDxTMFGQo0uUMhMJIOxOxQ==",
+    "format_version": 1,
+    "nonce": "gIGCg4SFhoeIiYqL",
+    "secret_id": "22222222-2222-4222-8222-222222222222",
+    "secret_version": 1,
+    "vault_id": "11111111-1111-4111-8111-111111111111",
+    "vault_key_version": 1,
+    "wrap_nonce": "kJGSk5SVlpeYmZqb",
+    "wrapped_dek": "GXieUN2wQyQg88uWe/FlRehfdbGLZkCN5rTE/uI2oz8e7rj5CoXQD8Q+tgtkas+3"
+  },
+  "rotated_secret_envelope": {
+    "algorithm": "AES-256-GCM",
+    "ciphertext": "SSvTqltZzjvyjxqJlw0Ty2pZ5CLS83Y5m0L5+ad0DQl2aDxTMFGQo0uUMhMJIOxOxQ==",
+    "format_version": 1,
+    "nonce": "gIGCg4SFhoeIiYqL",
+    "secret_id": "22222222-2222-4222-8222-222222222222",
+    "secret_version": 1,
+    "vault_id": "11111111-1111-4111-8111-111111111111",
+    "vault_key_version": 2,
+    "wrap_nonce": "0NHS09TV1tfY2drb",
+    "wrapped_dek": "lvCSj6EPHG1BeLz71L2GJPWs0RD2cmAZSrHXttXC4oc1oxMiwIvYT2CiTWf6Mekw"
+  },
+  "replacement_secret_envelope": {
+    "algorithm": "AES-256-GCM",
+    "ciphertext": "48/I8tXUH9U3g8LlpHwGrMj+4kXlGP1jnF2cgxZ58fqQKMtHW/ODzbcFVQ==",
+    "format_version": 1,
+    "nonce": "FBUWFxgZGhscHR4f",
+    "secret_id": "22222222-2222-4222-8222-222222222222",
+    "secret_version": 2,
+    "vault_id": "11111111-1111-4111-8111-111111111111",
+    "vault_key_version": 1,
+    "wrap_nonce": "KCkqKywtLi8wMTIz",
+    "wrapped_dek": "R9sP9pHHqHqABgK2dSFHgkVdfb+Bc3QT+xl4yJ2OeIlzLT4WqZaHIg99Sexhssf7"
+  }
+}

@@ -1,0 +1,16 @@
+[
+  {
+    "browser": "chromium",
+    "version": "151.0.7922.34",
+    "result": "RUNNING Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36\nPASS Go/Python fixed vectors: Argon2id, all 9 AAD/wrap/content operations, Unicode; KDF 229ms\nPASS wrong password/RK/user/secret/version/domain, nonce/tag tamper, strict schema/encoding, KDF ceiling, sizes, random replacement, key rotation\nPASS credential rewrap: same VK, new salt/RK/nonces, credential version +1\nPASS real Worker Argon2id unlock 280ms\nPASS offline retry reuses draft, existing vault conflict prevents write, late read after lock cannot submit\nPASS Worker/session: locked on refresh, stale KDF, saved+reentered recovery gate, no upload before verification, uncertain POST readback, exact large user_id, recovery and new password, idle lock\nPASS ALL — crypto vectors and Worker/session integration",
+    "prototype": "PASS init/recovery download+reentry/uncertain response/local encryption/visibility signal lock/wrong password/recovery; no remote sources, no POST, empty storage",
+    "errors": []
+  },
+  {
+    "browser": "msedge",
+    "version": "155.0.4283.62",
+    "result": "RUNNING Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36 Edg/155.0.0.0\nPASS Go/Python fixed vectors: Argon2id, all 9 AAD/wrap/content operations, Unicode; KDF 328ms\nPASS wrong password/RK/user/secret/version/domain, nonce/tag tamper, strict schema/encoding, KDF ceiling, sizes, random replacement, key rotation\nPASS credential rewrap: same VK, new salt/RK/nonces, credential version +1\nPASS real Worker Argon2id unlock 228ms\nPASS offline retry reuses draft, existing vault conflict prevents write, late read after lock cannot submit\nPASS Worker/session: locked on refresh, stale KDF, saved+reentered recovery gate, no upload before verification, uncertain POST readback, exact large user_id, recovery and new password, idle lock\nPASS ALL — crypto vectors and Worker/session integration",
+    "prototype": "PASS init/recovery download+reentry/uncertain response/local encryption/visibility signal lock/wrong password/recovery; no remote sources, no POST, empty storage",
+    "errors": []
+  }
+]

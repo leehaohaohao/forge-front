@@ -1,0 +1,103 @@
+{
+  "warning": "PUBLIC TEST DATA ONLY; requests in order for a fresh user 7. No real endpoint implementation in backend phase 1.",
+  "identity_response": {
+    "code": 0,
+    "message": "success",
+    "data": {
+      "initialized": false,
+      "user_id": "7",
+      "vault": null
+    }
+  },
+  "vault_create_request": {
+    "vault_id": "11111111-1111-4111-8111-111111111111",
+    "format_version": 1,
+    "vault_key_version": 1,
+    "credential_version": 1,
+    "kdf": {
+      "algorithm": "argon2id",
+      "version": 19,
+      "memory_kib": 65536,
+      "iterations": 3,
+      "parallelism": 4,
+      "length": 32,
+      "salt": "AAECAwQFBgcICQoLDA0ODw=="
+    },
+    "password_wrap": {
+      "nonce": "oKGio6Slpqeoqaqr",
+      "ciphertext": "Q5cHhzWl4PRtCk+1VKT37eXdThJrorZeebgqe9fQWX7T+nC8SkXmfZrWKEQqhy2u"
+    },
+    "recovery_wrap": {
+      "nonce": "sLGys7S1tre4ubq7",
+      "ciphertext": "xhTDti20FFv5cwKc9jmn8FT2MZckqYi19kCametePhZm3rdQjToqfff7BKgp1zS6"
+    }
+  },
+  "token_create_request": {
+    "provider": "openai",
+    "name": "公开向量测试",
+    "expected_vault_revision": "1",
+    "secret_envelope": {
+      "algorithm": "AES-256-GCM",
+      "ciphertext": "SSvTqltZzjvyjxqJlw0Ty2pZ5CLS83Y5m0L5+ad0DQl2aDxTMFGQo0uUMhMJIOxOxQ==",
+      "format_version": 1,
+      "nonce": "gIGCg4SFhoeIiYqL",
+      "secret_id": "22222222-2222-4222-8222-222222222222",
+      "secret_version": 1,
+      "vault_id": "11111111-1111-4111-8111-111111111111",
+      "vault_key_version": 1,
+      "wrap_nonce": "kJGSk5SVlpeYmZqb",
+      "wrapped_dek": "GXieUN2wQyQg88uWe/FlRehfdbGLZkCN5rTE/uI2oz8e7rj5CoXQD8Q+tgtkas+3"
+    }
+  },
+  "token_update_metadata_request": {
+    "expected_revision": "1",
+    "name": "新名称"
+  },
+  "token_replace_request": {
+    "expected_revision": "2",
+    "expected_vault_revision": "2",
+    "secret_envelope": {
+      "algorithm": "AES-256-GCM",
+      "ciphertext": "48/I8tXUH9U3g8LlpHwGrMj+4kXlGP1jnF2cgxZ58fqQKMtHW/ODzbcFVQ==",
+      "format_version": 1,
+      "nonce": "FBUWFxgZGhscHR4f",
+      "secret_id": "22222222-2222-4222-8222-222222222222",
+      "secret_version": 2,
+      "vault_id": "11111111-1111-4111-8111-111111111111",
+      "vault_key_version": 1,
+      "wrap_nonce": "KCkqKywtLi8wMTIz",
+      "wrapped_dek": "R9sP9pHHqHqABgK2dSFHgkVdfb+Bc3QT+xl4yJ2OeIlzLT4WqZaHIg99Sexhssf7"
+    }
+  },
+  "token_access_request": {
+    "purpose": "copy"
+  },
+  "token_delete_request": {
+    "expected_revision": "3"
+  },
+  "vault_update_credentials_request": {
+    "expected_revision": "3",
+    "credential_version": 2,
+    "kdf": {
+      "algorithm": "argon2id",
+      "version": 19,
+      "memory_kib": 65536,
+      "iterations": 3,
+      "parallelism": 4,
+      "length": 32,
+      "salt": "EBESExQVFhcYGRobHB0eHw=="
+    },
+    "password_wrap": {
+      "nonce": "4OHi4+Tl5ufo6err",
+      "ciphertext": "KD9lkcleZiKEE2lPHVd3VUr4OZ7AAjx7Utwjk7WK6sv5XifPzL2awoktB9jlf+qk"
+    },
+    "recovery_wrap": {
+      "nonce": "8PHy8/T19vf4+fr7",
+      "ciphertext": "EH+uHrjtO3HAHBVpERPaDJqp5aS3QTYOlIHWPud/+wm2CBQtsVbLAqqVwMZlGuE9"
+    }
+  },
+  "conflict_response": {
+    "code": 40902,
+    "message": "数据已变更，请刷新后重试"
+  }
+}
