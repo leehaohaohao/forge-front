@@ -138,7 +138,8 @@ for(const channel of (process.env.VAULT_BROWSERS||'chromium,msedge').split(','))
     reauthFailure=status;await page.getByLabel('账号登录密码',{exact:true}).fill('fixture-account-password');await btn('保存加密保险库').click();
     await page.getByText('请重新验证账号身份，账号密码与保险库密码不同。',{exact:true}).waitFor();
     assert.equal(await page.evaluate(()=>localStorage.getItem('forge_token')),'fixture-auth');assert(page.url().endsWith('/app/token'));
-    assert(await btn('保存加密保险库').isEnabled());await page.clock.fastForward(5000);
+    assert(await btn('保存加密保险库').isEnabled());await page.clock.runFor(5500);
+    await page.getByText('请重新验证账号身份，账号密码与保险库密码不同。',{exact:true}).waitFor({state:'hidden'});
   }
   await page.getByLabel('账号登录密码',{exact:true}).fill('fixture-account-password');await btn('保存加密保险库').click();await page.getByText('已解锁',{exact:true}).waitFor();
   await btn('查看').click();await page.getByText(replacement,{exact:true}).waitFor();await btn('隐藏').click();

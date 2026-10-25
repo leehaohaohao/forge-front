@@ -1,3 +1,4 @@
+import { useRequestError } from '@/hooks/useRequestError';
 import { useEffect } from 'react';
 import { Modal, Form, Input, Select, Checkbox, App } from 'antd';
 import { useQuickLinkStore } from '@/stores/quickLinks';
@@ -10,6 +11,7 @@ interface AddLinkModalProps {
 }
 
 export default function AddLinkModal({ open, onClose, editingLink }: AddLinkModalProps) {
+  const reportError = useRequestError();
   const { message } = App.useApp();
   const [form] = Form.useForm();
   const { workspaces, createLink, updateLink } = useQuickLinkStore();
@@ -43,8 +45,8 @@ export default function AddLinkModal({ open, onClose, editingLink }: AddLinkModa
         message.success('创建成功');
       }
       onClose();
-    } catch {
-      // validation failed
+    } catch (error) {
+      reportError(error);
     }
   };
 

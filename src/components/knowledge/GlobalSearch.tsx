@@ -1,3 +1,4 @@
+import { useRequestError } from '@/hooks/useRequestError';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Input, Spin, Typography, Tag, Space, Empty } from 'antd';
 import { SearchOutlined, FileTextOutlined } from '@ant-design/icons';
@@ -9,6 +10,7 @@ import dayjs from 'dayjs';
 const { Text, Paragraph } = Typography;
 
 export default function GlobalSearch() {
+  const reportError = useRequestError();
   const navigate = useNavigate();
   const [keyword, setKeyword] = useState('');
   const [results, setResults] = useState<Document[]>([]);
@@ -27,8 +29,9 @@ export default function GlobalSearch() {
     try {
       const res = await getDocuments({ keyword: kw, page: 1, page_size: 8 });
       setResults(res.data);
-    } catch {
+    } catch (error) {
       setResults([]);
+      reportError(error);
     } finally {
       setLoading(false);
     }

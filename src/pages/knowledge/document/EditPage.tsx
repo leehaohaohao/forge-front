@@ -1,3 +1,4 @@
+import { useRequestError } from '@/hooks/useRequestError';
 import { useState, useEffect } from 'react';
 import { Card, Button, Space, Form, Input, Select, Typography, App, Row, Col } from 'antd';
 import { SaveOutlined, SendOutlined, ArrowLeftOutlined } from '@ant-design/icons';
@@ -8,6 +9,7 @@ import MarkdownEditor from '@/components/knowledge/MarkdownEditor';
 const { Text } = Typography;
 
 export default function DocumentEditPage() {
+  const reportError = useRequestError();
   const { message } = App.useApp();
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
@@ -36,7 +38,7 @@ export default function DocumentEditPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetchSpaces();
+    fetchSpaces().catch(reportError);
     return () => clearDocument();
   }, []);
 
@@ -50,14 +52,13 @@ export default function DocumentEditPage() {
         setSpaceId(doc.space_id);
         setFolderId(doc.folder_id);
         setVisibility(doc.visibility);
-        if (doc.space_id) fetchFolders(doc.space_id);
-      });
+      }).catch(reportError);
     }
   }, [id]);
 
   useEffect(() => {
     if (spaceId) {
-      fetchFolders(spaceId);
+      fetchFolders(spaceId).catch(reportError);
       setFolderId(null);
     }
   }, [spaceId]);

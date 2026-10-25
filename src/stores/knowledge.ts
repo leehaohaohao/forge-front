@@ -23,13 +23,13 @@ interface KnowledgeState {
   createSpace: (data: Partial<Space>) => Promise<void>;
   updateSpace: (id: number, data: Partial<Space>) => Promise<void>;
   deleteSpace: (id: number) => Promise<void>;
-  setCurrentSpace: (id: number | null) => void;
+  setCurrentSpace: (id: number | null) => Promise<void>;
 
   fetchFolders: (spaceId: number) => Promise<void>;
   createFolder: (spaceId: number, data: Partial<Folder>) => Promise<void>;
   updateFolder: (id: number, data: Partial<Folder>) => Promise<void>;
   deleteFolder: (id: number) => Promise<void>;
-  setCurrentFolder: (id: number | null) => void;
+  setCurrentFolder: (id: number | null) => Promise<void>;
 
   fetchDocuments: (params?: DocumentQueryParams) => Promise<void>;
   fetchRootDocuments: () => Promise<void>;
@@ -42,7 +42,7 @@ interface KnowledgeState {
   pinDocument: (id: number) => Promise<void>;
   fetchRecentDocuments: () => Promise<void>;
   fetchFavoriteDocuments: () => Promise<void>;
-  setFavoritesMode: () => void;
+  setFavoritesMode: () => Promise<void>;
 
   likeDocument: (id: number) => Promise<void>;
   unlikeDocument: (id: number) => Promise<void>;
@@ -111,15 +111,15 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
     await get().fetchSpaces();
   },
 
-  setCurrentSpace: (id) => {
+  setCurrentSpace: async (id) => {
     set({ currentSpaceId: id, currentFolderId: null, pagination: { ...get().pagination, current: 1 } });
     if (id) {
-      get().fetchFolders(id);
-      get().fetchDocuments({ space_id: id });
+      await get().fetchFolders(id);
+      await get().fetchDocuments({ space_id: id });
     } else {
       set({ folders: [] });
-      get().fetchSpaces();
-      get().fetchRootDocuments();
+      await get().fetchSpaces();
+      await get().fetchRootDocuments();
     }
   },
 
@@ -150,13 +150,13 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
     if (currentSpaceId) await get().fetchFolders(currentSpaceId);
   },
 
-  setCurrentFolder: (id) => {
+  setCurrentFolder: async (id) => {
     const { currentSpaceId, pagination } = get();
     set({ currentFolderId: id, pagination: { ...pagination, current: 1 } });
     if (id) {
-      get().fetchDocuments({ folder_id: id });
+      await get().fetchDocuments({ folder_id: id });
     } else if (currentSpaceId) {
-      get().fetchDocuments({ space_id: currentSpaceId });
+      await get().fetchDocuments({ space_id: currentSpaceId });
     }
   },
 
@@ -261,9 +261,9 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
     }
   },
 
-  setFavoritesMode: () => {
+  setFavoritesMode: async () => {
     set({ currentSpaceId: -1, currentFolderId: null, folders: [], pagination: { ...get().pagination, current: 1 } });
-    get().fetchFavoriteDocuments();
+    await get().fetchFavoriteDocuments();
   },
 
   // ========== 互动 ==========

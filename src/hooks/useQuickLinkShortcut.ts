@@ -1,3 +1,4 @@
+import { useRequestError } from '@/hooks/useRequestError';
 import { useEffect } from 'react';
 import { useQuickLinkStore } from '@/stores/quickLinks';
 import { useSettingsStore } from '@/stores/settings';
@@ -14,6 +15,7 @@ function parseShortcut(combo: string) {
 }
 
 export function useQuickLinkShortcut() {
+  const reportError = useRequestError();
   const togglePanel = useQuickLinkStore((s) => s.togglePanel);
   const shortcut = useSettingsStore((s) => s.settings.shortcuts.togglePanel);
 
@@ -31,7 +33,7 @@ export function useQuickLinkShortcut() {
         keyMatch
       ) {
         e.preventDefault();
-        togglePanel();
+        togglePanel().catch(reportError);
       }
     };
     document.addEventListener('keydown', handler);

@@ -1,3 +1,4 @@
+import { useRequestError } from '@/hooks/useRequestError';
 import { useState } from 'react';
 import { Select, Button, Space, Input, Popconfirm, App } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
@@ -5,6 +6,7 @@ import { useQuickLinkStore } from '@/stores/quickLinks';
 import type { Workspace } from '@/types/quickLink';
 
 export default function WorkspaceSwitcher() {
+  const reportError = useRequestError();
   const { message } = App.useApp();
   const { workspaces, currentWorkspaceId, setCurrentWorkspace, createWorkspace, deleteWorkspace } =
     useQuickLinkStore();
@@ -38,7 +40,7 @@ export default function WorkspaceSwitcher() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: adding ? 8 : 0 }}>
         <Select
           value={currentWorkspaceId}
-          onChange={setCurrentWorkspace}
+          onChange={id=>{void setCurrentWorkspace(id).catch(reportError);}}
           style={{ flex: 1 }}
           popupMatchSelectWidth={false}
           options={workspaces.map((w: Workspace) => ({

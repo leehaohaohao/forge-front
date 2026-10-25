@@ -13,11 +13,11 @@ interface QuickLinkStore {
 
   fetchWorkspaces: () => Promise<void>;
   fetchLinks: (workspaceId?: number) => Promise<void>;
-  setCurrentWorkspace: (id: number) => void;
+  setCurrentWorkspace: (id: number) => Promise<void>;
   setSearchKeyword: (keyword: string) => void;
-  togglePanel: () => void;
+  togglePanel: () => Promise<void>;
   closePanel: () => void;
-  setPanelVisible: (visible: boolean) => void;
+  setPanelVisible: (visible: boolean) => Promise<void>;
 
   createLink: (data: CreateLinkParams) => Promise<void>;
   updateLink: (id: number, data: UpdateLinkParams) => Promise<void>;
@@ -64,36 +64,36 @@ export const useQuickLinkStore = create<QuickLinkStore>((set, get) => ({
     }
   },
 
-  setCurrentWorkspace: (id) => {
+  setCurrentWorkspace: async (id) => {
     localStorage.setItem(WS_KEY, String(id));
     set({ currentWorkspaceId: id, searchKeyword: '' });
-    get().fetchLinks(id);
+    await get().fetchLinks(id);
   },
 
   setSearchKeyword: (keyword) => set({ searchKeyword: keyword }),
 
-  togglePanel: () => {
+  togglePanel: async () => {
     const { panelVisible, workspaces, fetchLinks } = get();
-    if (!panelVisible && workspaces.length === 0) {
-      get().fetchWorkspaces().then(() => fetchLinks());
-    } else if (!panelVisible) {
-      fetchLinks();
-    }
     set({ panelVisible: !panelVisible, searchKeyword: '' });
+    if (!panelVisible && workspaces.length === 0) {
+      await get().fetchWorkspaces(); await fetchLinks();
+    } else if (!panelVisible) {
+      await fetchLinks();
+    }
   },
 
   closePanel: () => set({ panelVisible: false, searchKeyword: '' }),
 
-  setPanelVisible: (visible) => {
+  setPanelVisible: async (visible) => {
+    set({ panelVisible: visible, searchKeyword: '' });
     if (visible) {
       const { workspaces, fetchLinks } = get();
       if (workspaces.length === 0) {
-        get().fetchWorkspaces().then(() => fetchLinks());
+        await get().fetchWorkspaces(); await fetchLinks();
       } else {
-        fetchLinks();
+        await fetchLinks();
       }
     }
-    set({ panelVisible: visible, searchKeyword: '' });
   },
 
   createLink: async (data) => {
@@ -149,5 +149,6 @@ export const useQuickLinkStore = create<QuickLinkStore>((set, get) => ({
       else localStorage.removeItem(WS_KEY);
     }
     await get().fetchWorkspaces();
+    await get().fetchLinks();
   },
 }));

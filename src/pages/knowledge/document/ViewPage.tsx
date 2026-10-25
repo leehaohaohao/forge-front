@@ -1,3 +1,4 @@
+import { useRequestError } from '@/hooks/useRequestError';
 import { useEffect, useState } from 'react';
 import { Card, Button, Space, Tag, Typography, Divider, App } from 'antd';
 import {
@@ -18,6 +19,7 @@ import dayjs from 'dayjs';
 const { Title, Text } = Typography;
 
 export default function DocumentViewPage() {
+  const reportError = useRequestError();
   const { message } = App.useApp();
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
@@ -41,8 +43,8 @@ export default function DocumentViewPage() {
     if (id) {
       fetchDocument(Number(id)).then((d) => {
         setLikeCount(d.like_count);
-      });
-      fetchComments(Number(id));
+      }).catch(reportError);
+      fetchComments(Number(id)).catch(reportError);
     }
     return () => clearDocument();
   }, [id]);

@@ -35,8 +35,9 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     set({ settings: merged });
     try {
       await settingsApi.updateSettings(patch);
-    } catch {
+    } catch (error) {
       set({ settings: current });
+      throw error;
     }
   },
 
