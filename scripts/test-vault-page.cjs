@@ -52,9 +52,9 @@ for(const channel of (process.env.VAULT_BROWSERS||'chromium,msedge').split(','))
  try {
   await page.clock.install(); await page.goto(base+'/app/token');
   const discardLockedDraft=async(action,savedFile=false)=>{
-    await page.evaluate(()=>window.dispatchEvent(new Event('blur')));
+    await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));Object.defineProperty(document,'hidden',{configurable:true,value:false});});
     const field=page.getByLabel('草稿解锁密码',{exact:true});
-    await page.getByText('因浏览器窗口失去焦点，保险库已自动锁定。',{exact:false}).waitFor();
+    await page.getByText('因切换标签页或隐藏页面，保险库已自动锁定。',{exact:false}).waitFor();
     if(savedFile){await field.waitFor();assert.equal(await field.inputValue(),'');}
     else {await page.getByText('恢复文件尚未下载',{exact:true}).waitFor();assert.equal(await field.count(),0);assert.equal(await page.getByRole('button',{name:'继续确认恢复材料',exact:true}).count(),0);}
     // Do not type or otherwise change local component state before discarding.
@@ -75,6 +75,10 @@ for(const channel of (process.env.VAULT_BROWSERS||'chromium,msedge').split(','))
   await page.getByLabel('独立解锁密码',{exact:true}).fill(password);
   await page.getByRole('button',{name:'创建本地保险库',exact:true}).click();
   await page.getByRole('button',{name:'下载恢复材料',exact:true}).waitFor();
+  // Password-save/download UI can blur a still-visible document. Keep the draft.
+  await page.evaluate(()=>window.dispatchEvent(new Event('blur')));
+  assert.equal(await page.getByText('等待恢复材料验证',{exact:true}).count(),1);
+  assert(await page.getByRole('button',{name:'下载恢复材料',exact:true}).isVisible());
   const downloaded=page.waitForEvent('download');await page.getByRole('button',{name:'下载恢复材料',exact:true}).click();
   const material=JSON.parse(await fs.readFile(await (await downloaded).path(),'utf8'));secrets.push(material.recovery_key);
   const pauseAndResume=async(pass)=>{
@@ -82,9 +86,12 @@ for(const channel of (process.env.VAULT_BROWSERS||'chromium,msedge').split(','))
       const cdp=await context.newCDPSession(page);await cdp.send('Emulation.setFocusEmulationEnabled',{enabled:false});
       const other=await context.newPage();await (await context.newCDPSession(other)).send('Emulation.setFocusEmulationEnabled',{enabled:false});
       await other.goto('about:blank');await other.bringToFront();
-      await page.getByLabel('草稿解锁密码',{exact:true}).waitFor({state:'attached'});
+      const hidden=await page.evaluate(()=>document.hidden);
+      if(hidden) await page.getByLabel('草稿解锁密码',{exact:true}).waitFor({state:'attached'});
+      else assert.equal(await page.getByText('等待恢复材料验证',{exact:true}).count(),1);
       await other.close();await page.bringToFront();await cdp.detach();
-    } else await page.evaluate(()=>window.dispatchEvent(new Event('blur')));
+      if(!hidden)return;
+    } else await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));Object.defineProperty(document,'hidden',{configurable:true,value:false});});
     await page.getByLabel('草稿解锁密码',{exact:true}).waitFor();
     assert((await page.locator('input[type=password]').evaluateAll(xs=>xs.map(x=>x.value))).every(x=>x===''));
     await page.getByLabel('草稿解锁密码',{exact:true}).fill(pass);
@@ -95,6 +102,8 @@ for(const channel of (process.env.VAULT_BROWSERS||'chromium,msedge').split(','))
   await pauseAndResume(password);
   await page.getByLabel('重新输入恢复密钥',{exact:true}).fill(material.recovery_key);
   await page.getByRole('button',{name:'验证恢复材料',exact:true}).click();
+  await page.evaluate(()=>window.dispatchEvent(new Event('blur')));
+  assert(await page.getByRole('button',{name:'保存加密保险库',exact:true}).isEnabled());
   await page.getByRole('button',{name:'保存加密保险库',exact:true}).click();
   await page.getByText('已解锁',{exact:true}).waitFor();assert.equal(vault.vault_id,material.vault_id);
   const btn=(name)=>page.getByRole('button',{name:new RegExp('^'+[...name].join('\\s*')+'$')});

@@ -56,6 +56,8 @@ button.onclick=async()=>{
     await rejects(()=>session!.publish(transport),'no publish before verify');
     assert(writes===0,'no upload before recovery verified');
     await rejects(()=>session!.verifyRecovery(prepared.recovery),'not saved');
+    window.dispatchEvent(new Event('blur'));
+    assert(session.state==='pending','browser chrome blur retains draft');
     session.recoverySaved();
     session.suspend();
     assert(session.state==='locked' && session.pendingConfirmation?.vault_id===prepared.vault.vault_id,'only encrypted draft retained');
