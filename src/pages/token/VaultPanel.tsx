@@ -65,7 +65,7 @@ export default function VaultPanel() {
     if(!recovery)return;
     const url=URL.createObjectURL(new Blob([JSON.stringify(recovery,null,2)],{type:'application/json'}));
     const a=document.createElement('a');a.href=url;a.download='forge-recovery.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
-    vaultSession.recoverySaved();setSaved(true);
+    vaultSession.recoverySaved();setSaved(true);message.info('已发起下载，请在浏览器下载记录中查找 forge-recovery.json；文件是否保存成功请自行确认。');
   }
   return <Card title={<Space>个人保险库 <Typography.Text type="secondary">{state==='unlocked'?'已解锁':state==='pending'?'等待恢复材料验证':'已锁定'}</Typography.Text></Space>} extra={<Button onClick={()=>vaultSession.lock()}>锁定并清理</Button>}>
     <Alert type="info" showIcon title="使用独立于登录密码的长口令。解锁密码和恢复材料只在本地处理。" description="查看30秒自动隐藏，5分钟无操作、切换标签页、切换应用或离开本页会锁定。复制后内容留在系统剪贴板，请自行处理。丢失密码与恢复材料后无法找回。" />
@@ -78,14 +78,20 @@ export default function VaultPanel() {
     {!info && <Button loading={busy} onClick={()=>run(async op=>{const v=await readVault(op.signal);op.guard();setInfo(v);})}>读取保险库状态</Button>}
     {state==='unlocked' && mode==='unlock' && <Button style={{marginTop:12}} onClick={()=>{vaultSession.lock();setMode('password');}}>修改解锁密码</Button>}
     {pending && state==='locked' && <div style={{marginTop:16,maxWidth:560}}>
-      <Typography.Paragraph>待确认的加密草稿已保留，明文密钥已清理。请输入刚设置的解锁密码，继续确认同一份恢复材料。若未保存恢复文件，请放弃草稿后重新生成。</Typography.Paragraph>
-      <Input.Password aria-label="草稿解锁密码" autoComplete="off" value={password} onChange={e=>setPassword(e.target.value)} disabled={busy}/>
-      <Button disabled={busy} onClick={()=>run(async op=>{await vaultSession.resumePrepared(password);op.guard();setSaved(pending.saved);setVerified(false);})}>继续确认恢复材料</Button>
+      <Typography.Paragraph>
+        {pending.pauseReason==='idle'?'因长时间未操作，保险库已自动锁定。':pending.pauseReason==='hidden'?'因切换标签页或隐藏页面，保险库已自动锁定。':pending.pauseReason==='blur'?'因浏览器窗口失去焦点，保险库已自动锁定。':'保险库已锁定。'}
+        恢复材料确认流程尚未完成。
+      </Typography.Paragraph>
+      {pending.saved ? <>
+        <Typography.Paragraph>恢复文件已发起下载。请在浏览器下载记录中查找 forge-recovery.json，并离线保管。输入刚设置的解锁密码后，可继续验证文件中的恢复密钥。若找不到文件，请放弃草稿并重新开始。</Typography.Paragraph>
+        <Input.Password aria-label="草稿解锁密码" autoComplete="off" value={password} onChange={e=>setPassword(e.target.value)} disabled={busy}/>
+        <Button disabled={busy} onClick={()=>run(async op=>{await vaultSession.resumePrepared(password);op.guard();setSaved(pending.saved);setVerified(false);})}>继续确认恢复材料</Button>
+      </> : <Alert style={{marginBottom:12}} type="warning" showIcon title="恢复文件尚未下载" description="自动锁定已清理恢复密钥，当前草稿无法继续下载或验证。请点击下方“放弃草稿”，重新输入密码生成材料，然后先点击“下载恢复材料”。这不会删除已有密钥。" />}
       <Button disabled={busy} onClick={()=>vaultSession.lock()}>放弃草稿</Button>
     </div>}
     {pending && state==='pending' && <div style={{marginTop:16,maxWidth:560}}>
-      <Typography.Paragraph>请下载恢复材料并离线保管，再从保存的文件中重新输入恢复密钥验证。不要将它上传或填写到备注中。</Typography.Paragraph>
-      {recovery && <Button disabled={busy} onClick={download}>下载恢复材料</Button>}
+      <Typography.Paragraph>尚未完成保存。请先点击“下载恢复材料”（不会自动弹出下载），再从文件中重新输入恢复密钥验证，最后保存加密保险库。不要将恢复材料上传或填写到备注中。</Typography.Paragraph>
+      {recovery && <Button type="primary" disabled={busy} onClick={download}>下载恢复材料</Button>}
       <Input.Password style={{marginTop:8}} aria-label="重新输入恢复密钥" autoComplete="off" value={entry} onChange={e=>{setEntry(e.target.value);setVerified(false);}} disabled={busy}/>
       <Button disabled={!saved||busy} onClick={()=>run(async op=>{await vaultSession.verifyRecovery({format_version:pending.format_version,user_id:pending.user_id,vault_id:pending.vault_id,recovery_key:entry});op.guard();setEntry('');setVerified(true);message.success('恢复材料验证成功');})}>验证恢复材料</Button>
       {info?.initialized && <Input.Password style={{marginTop:8}} aria-label="账号登录密码" autoComplete="off" placeholder="账号登录密码（仅用于身份重认证）" value={account} onChange={e=>setAccount(e.target.value)} disabled={busy}/>}

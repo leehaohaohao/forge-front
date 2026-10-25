@@ -51,10 +51,12 @@ for(const channel of (process.env.VAULT_BROWSERS||'chromium,msedge').split(','))
  });
  try {
   await page.clock.install(); await page.goto(base+'/app/token');
-  const discardLockedDraft=async(action)=>{
+  const discardLockedDraft=async(action,savedFile=false)=>{
     await page.evaluate(()=>window.dispatchEvent(new Event('blur')));
-    const field=page.getByLabel('草稿解锁密码',{exact:true});await field.waitFor();
-    assert.equal(await field.inputValue(),'');
+    const field=page.getByLabel('草稿解锁密码',{exact:true});
+    await page.getByText('因浏览器窗口失去焦点，保险库已自动锁定。',{exact:false}).waitFor();
+    if(savedFile){await field.waitFor();assert.equal(await field.inputValue(),'');}
+    else {await page.getByText('恢复文件尚未下载',{exact:true}).waitFor();assert.equal(await field.count(),0);assert.equal(await page.getByRole('button',{name:'继续确认恢复材料',exact:true}).count(),0);}
     // Do not type or otherwise change local component state before discarding.
     await page.getByRole('button',{name:action,exact:true}).click();
     await field.waitFor({state:'hidden'});
@@ -66,7 +68,7 @@ for(const channel of (process.env.VAULT_BROWSERS||'chromium,msedge').split(','))
     await page.getByRole('button',{name:'创建本地保险库',exact:true}).click();
     await page.getByRole('button',{name:'下载恢复材料',exact:true}).waitFor();
     if(savedFile){const download=page.waitForEvent('download');await page.getByRole('button',{name:'下载恢复材料',exact:true}).click();await download;}
-    await discardLockedDraft(action);
+    await discardLockedDraft(action,savedFile);
     await page.getByRole('button',{name:'创建本地保险库',exact:true}).waitFor();
     assert.equal(vault,null,'discard never publishes draft');
   }
