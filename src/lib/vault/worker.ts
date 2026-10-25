@@ -30,6 +30,16 @@ async function execute(command: VaultCommand | {action:'activatePrepared'}) {
       try { return await prepare(command.userId,command.password,raw); }
       finally { raw.fill(0); }
     }
+    case 'resumePrepared': {
+      decimal(command.userId); validateVault(command.vault);
+      if (vk || pending) throw new VaultError('STALE');
+      const raw = await unwrapPassword(command.userId,command.vault,command.password);
+      try {
+        await adopt(command.userId,command.vault,raw);
+        pending = {vault:command.vault,digest:await digest(raw),confirmed:false};
+        return true;
+      } finally { raw.fill(0); }
+    }
     case 'unlock': {
       decimal(command.userId); validateVault(command.vault);
       if (pending) throw new VaultError('RECOVERY_UNVERIFIED');

@@ -40,3 +40,47 @@ await assert.rejects(()=>m.verifyBackup(vault,[good,{...good,metadata:{...good.m
 await assert.rejects(()=>m.verifyBackup(vault,[{...good,deleted_at:'invalid'}],key,vault.user_id,1,0));
 await assert.rejects(()=>m.snapshot(async()=>({batch:{...batch,batch_id:'wrong'},records:[],next_after:null}),batch.batch_id));
 console.log('PASS duplicate secret, invalid deletion state, wrong batch rejected');
+
+// Six writes across three chunks exceed the real five-reauth/minute policy.
+for(const count of [3,201]) {
+ let now=0,authWindow=0,authCount=0,authSerial=0,write429=true,read429=true;
+ const waits=[],tokens=new Set(),requests=new Map(),sizes=[];
+ const many=Array.from({length:count},(_,i)=>({...sr,id:String(i+1),metadata:{...sr.metadata,id:String(i+1)}}));
+ const rows=many.map(({legacy_value,...row})=>({...row,secret_envelope:null,envelope_sha256:null,verified:false}));
+ const batch2={...batch,revision:'1',state:'exported',record_count:count,staged_count:0,verified_count:0};
+ const sleep=async ms=>{waits.push(ms);now+=ms;};
+ const reauth=async()=>{
+  const window=Math.floor(now/60000);if(window!==authWindow){authWindow=window;authCount=0;}
+  if(authCount===5)throw new m.RateLimitError(60000-now%60000);
+  authCount++;const token='one-time-'+(++authSerial);tokens.add(token);return token;
+ };
+ const multiApi=async(path,body,token)=>{
+  if(!body){
+   if(read429){read429=false;throw new m.RateLimitError(2000);}
+   if(path==='/vault')return {vault};
+   const after=Number(new URL('http://fixture'+path).searchParams.get('after')||0);
+   const page=rows.filter(r=>Number(r.id)>after).slice(0,100);
+   return {batch:{...batch2},records:structuredClone(page),next_after:page.length===100?page.at(-1).id:null};
+  }
+  assert(tokens.has(token),'fresh authorization');tokens.delete(token);
+  if(write429){write429=false;throw new m.RateLimitError(3000);}
+  assert(!requests.has(body.request_id));requests.set(body.request_id,structuredClone(body));
+  assert.equal(body.expected_revision,batch2.revision);assert(body.records.length<=100);sizes.push(body.records.length);
+  for(const item of body.records){const row=rows.find(r=>r.id===item.id);
+   if(path.endsWith('/stage')){row.secret_envelope=item.secret_envelope;row.envelope_sha256=await m.envelopeDigest(item.secret_envelope);batch2.staged_count++;}
+   else{assert.equal(item.envelope_sha256,row.envelope_sha256);row.verified=true;batch2.verified_count++;}
+  }
+  batch2.revision=String(BigInt(batch2.revision)+1n);batch2.state=batch2.verified_count===count?'verified':'staged';
+  return batch2;
+ };
+ await m.migrate({batch:batch2,records:many},vault,key,multiApi,reauth,sleep);
+ assert.equal(batch2.verified_count,count);assert.equal(requests.size,Math.ceil(count/100)*2);
+ assert(waits.includes(2000)&&waits.includes(3000));if(count>100)assert(now>=60000,'reauth limit waited');
+ const writes=requests.size;await m.migrate({batch:batch2,records:many},vault,key,multiApi,reauth,sleep);assert.equal(requests.size,writes);
+ console.log('PASS '+count+' records: batching, pagination, read/write 429, fresh authorization, reauth limit and resume');
+}
+assert.equal(m.retryAfterMs('7'),7000);
+assert.equal(m.retryAfterMs('Thu, 01 Jan 1970 00:00:10 GMT',0),10000);
+assert.equal(m.retryAfterMs(null),60000);
+let attempts=0;await assert.rejects(()=>m.retryRateLimit(async()=>{attempts++;throw new m.RateLimitError(1);},async()=>{}));assert.equal(attempts,9);
+console.log('PASS Retry-After seconds/date/fallback and bounded retries');

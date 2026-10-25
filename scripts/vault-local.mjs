@@ -15,7 +15,14 @@ async function main(){
  if(mode==='migrate'||mode==='export'){
   const url=new URL(origin);check(url.protocol==='https:'||(url.protocol==='http:'&&['localhost','127.0.0.1','[::1]'].includes(url.hostname)));check(url.username===''&&url.password===''&&url.search===''&&url.hash==='');
   const src=mode==='migrate'?lib.source(await file(path)):null;const bearer=await secret('账号登录令牌（隐藏输入）');
-  const api=async(route,body,token)=>{const response=await fetch(url.origin+'/forge'+route,{method:body?'POST':'GET',redirect:'error',cache:'no-store',headers:{Authorization:'Bearer '+bearer,'Content-Type':'application/json',...(token?{'X-Forge-Reauth':token}:{})},...(body?{body:JSON.stringify(body)}:{})});check(response.ok);const data=await response.json();check(data.code===0);return data.data;};
+  const api=async(route,body,token)=>{
+   const request=async()=>{
+    const response=await fetch(url.origin+'/forge'+route,{method:body?'POST':'GET',redirect:'error',cache:'no-store',headers:{Authorization:'Bearer '+bearer,'Content-Type':'application/json',...(token?{'X-Forge-Reauth':token}:{})},...(body?{body:JSON.stringify(body)}:{})});
+    if(response.status===429){const wait=lib.retryAfterMs(response.headers.get('Retry-After'));await response.body?.cancel();throw new lib.RateLimitError(wait);}
+    check(response.ok);const data=await response.json();check(data.code===0);return data.data;
+   };
+   return token?request():lib.retryRateLimit(request);
+  };
   const {vault}=await api('/vault');check(vault);
   if(mode==='export'){const auth=await api('/auth/reauth',{account_password:await secret('账号密码（导出身份验证）'),purpose:'vault_export'});const backup=await api('/vault/export',{expected_revision:vault.revision},auth.reauth_token);const bytes=Buffer.from(JSON.stringify(backup));await writeFile(path,bytes,{flag:'wx',mode:0o600});await writeFile(path+'.sha256',await lib.digest(bytes)+'\n',{flag:'wx',mode:0o600});console.log('加密备份与摘要已保存；请运行 verify-backup 独立验证。');return;}
   const key=await lib.unlock(vault,await secret(authMode==='recovery'?'恢复密钥':'保险库独立密码'),authMode==='recovery');

@@ -32,17 +32,18 @@ export class VaultSession {
   private status: 'locked'|'pending'|'unlocked' = 'locked';
   constructor(private idleMs=300000) {
     if (typeof window !== 'undefined') {
-      const hide=() => { if (document.hidden) this.lock(); };
+      const hide=() => { if (document.hidden) this.suspend(); };
       const activity=() => { if (this.status !== 'locked') this.touch(); };
       const leave=() => this.lock();
       document.addEventListener('visibilitychange',hide);
       window.addEventListener('pagehide',leave);
-      window.addEventListener('blur',leave);
+      const blur=()=>this.suspend();
+      window.addEventListener('blur',blur);
       window.addEventListener('popstate',leave);
       window.addEventListener('pointerdown',activity);
       window.addEventListener('keydown',activity);
       this.stop=() => {
-        document.removeEventListener('visibilitychange',hide); window.removeEventListener('pagehide',leave); window.removeEventListener('blur',leave);
+        document.removeEventListener('visibilitychange',hide); window.removeEventListener('pagehide',leave); window.removeEventListener('blur',blur);
         window.removeEventListener('popstate',leave); window.removeEventListener('pointerdown',activity); window.removeEventListener('keydown',activity);
       };
     }
@@ -54,7 +55,7 @@ export class VaultSession {
   private notify() { this.listeners.forEach(fn=>fn()); }
   private touch() {
     clearTimeout(this.timer);
-    this.timer=setTimeout(()=>this.lock(),this.idleMs);
+    this.timer=setTimeout(()=>this.suspend(),this.idleMs);
   }
   private call<T>(command:VaultCommand | {action:'activatePrepared'}): Promise<T> {
     if (typeof document !== 'undefined' && document.hidden) return Promise.reject(new VaultError('LOCKED'));
@@ -76,10 +77,28 @@ export class VaultSession {
       this.worker!.postMessage({id,command});
     });
   }
-  lock(reason:VaultFailure='STALE') {
+  get pendingConfirmation() {
+    const d=this.draft;
+    return d ? {format_version:1 as const,user_id:d.userId,vault_id:d.vault.vault_id,saved:d.saved} : undefined;
+  }
+  // Only encrypted wrappers and non-secret confirmation metadata survive focus loss.
+  suspend() { this.lock('STALE',true); }
+  async resumePrepared(password:string) {
+    const draft=this.draft, epoch=this.generation;
+    if (!draft || this.state!=='locked') throw new VaultError('STALE');
+    try {
+      await this.call({action:'resumePrepared',userId:draft.userId,vault:draft.vault,password});
+      if (!this.isCurrent(epoch) || this.draft!==draft) throw new VaultError('STALE');
+      this.status='pending'; this.notify();
+    } catch(error) {
+      if(this.isCurrent(epoch)) this.suspend();
+      throw error;
+    }
+  }
+  lock(reason:VaultFailure='STALE',preserveDraft=false) {
     this.generation++; this.worker?.terminate(); this.worker=undefined;
     this.waiters.forEach(w=>w.reject(new VaultError(reason))); this.waiters.clear();
-    clearTimeout(this.timer); this.draft=undefined; this.status='locked'; this.notify();
+    clearTimeout(this.timer); if(preserveDraft && this.draft) this.draft.verified=false; else this.draft=undefined; this.status='locked'; this.notify();
   }
   dispose() { this.lock(); this.stop?.(); this.listeners.clear(); }
   async initialize(userId:string,password:string):Promise<PreparedVault> {
@@ -90,7 +109,7 @@ export class VaultSession {
     return result;
   }
   async unlock(userId:string,vault:VaultConfig,password:string) {
-    if (this.status==='pending') throw new VaultError('RECOVERY_UNVERIFIED');
+    if (this.draft) throw new VaultError('RECOVERY_UNVERIFIED');
     try {
       await this.call({action:'unlock',userId,vault:configOf(vault),password});
       this.status='unlocked'; this.notify();
@@ -101,7 +120,7 @@ export class VaultSession {
     }
   }
   async changeCredentials(userId:string,vault:VaultRead,credentials:{password:string}|{recoveryKey:string},newPassword:string):Promise<PreparedVault> {
-    if (this.status==='pending') throw new VaultError('RECOVERY_UNVERIFIED');
+    if (this.draft) throw new VaultError('RECOVERY_UNVERIFIED');
     validatePassword(newPassword);
     try {
       decimal(vault.revision); if (vault.user_id !== userId) throw new VaultError('INVALID_FORMAT');

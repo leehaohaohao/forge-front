@@ -284,12 +284,12 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
 
   favoriteDocument: async (id) => {
     await knowledgeApi.favoriteDocument(id);
-    set({ isFavorited: true });
+    if(get().currentDocument?.id===id) set({ isFavorited: true });
   },
 
   unfavoriteDocument: async (id) => {
     await knowledgeApi.unfavoriteDocument(id);
-    set({ isFavorited: false });
+    if(get().currentDocument?.id===id) set({ isFavorited: false });
   },
 
   fetchComments: async (documentId) => {

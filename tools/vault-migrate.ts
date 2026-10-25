@@ -33,31 +33,66 @@ export async function snapshot(api:any,batch:string) {
   ordered(records);requireThat(records.length===view.record_count);return {batch:view,records};
 }
 function match(s:any,d:any){requireThat(s.id===d.id&&s.source_revision===d.source_revision&&s.deleted_at===d.deleted_at);for(const k of Object.keys(s.metadata))requireThat(JSON.stringify(s.metadata[k])===JSON.stringify(d.metadata[k]));}
-export async function migrate(src:any,v:any,key:CryptoKey,api:any,reauth:()=>Promise<string>) {
+export class RateLimitError extends Error {
+  constructor(public retryAfterMs:number) { super('RATE_LIMITED'); }
+}
+export function retryAfterMs(header:string|null,now=Date.now()) {
+  if(header && /^\d+$/.test(header)) return Math.max(1000,Number(header)*1000);
+  const date=header?Date.parse(header):NaN;
+  return Number.isFinite(date)?Math.max(1000,date-now):60000;
+}
+export async function retryRateLimit<T>(action:()=>Promise<T>,sleep=(ms:number)=>new Promise<void>(r=>setTimeout(r,ms))) {
+  for(let attempt=0;;attempt++) {
+    try {return await action();} catch(error) {
+      if(!(error instanceof RateLimitError) || attempt>=8) throw error;
+      // Reject unreasonable waits rather than overflowing setTimeout and retrying early.
+      requireThat(Number.isFinite(error.retryAfterMs)&&error.retryAfterMs>=0&&error.retryAfterMs<=86400000);
+      await sleep(error.retryAfterMs);
+    }
+  }
+}
+export async function migrate(src:any,v:any,key:CryptoKey,api:any,reauth:()=>Promise<string>,sleep?:(ms:number)=>Promise<void>) {
   requireThat(v.user_id===src.batch.user_id&&v.vault_id===src.batch.vault_id);
-  let snap=await snapshot(api,src.batch.batch_id);
+  const read=(path:string)=>retryRateLimit<any>(()=>api(path),sleep);
+  let snap=await snapshot(read,src.batch.batch_id);
   const validate=()=>{requireThat(snap.batch.user_id===v.user_id&&snap.batch.vault_id===v.vault_id&&snap.batch.record_count===src.records.length&&['exported','staged','verified'].includes(snap.batch.state));src.records.forEach((s:any,i:number)=>match(s,snap.records[i]));};validate();
-  for(let i=0;i<src.records.length;i++) {
-    const s=src.records[i];let d=snap.records[i];
-    if(!d.secret_envelope){
-      const live=await api('/vault');requireThat(live.vault.vault_id===v.vault_id&&live.vault.vault_key_version===v.vault_key_version);
-      const c={user_id:v.user_id,vault_id:v.vault_id,vault_key_version:v.vault_key_version,secret_id:crypto.randomUUID(),secret_version:1};
-      const e=await encryptSecret(key,c,s.legacy_value,live.vault.dek_wrap_count);
-      const body={request_id:crypto.randomUUID(),expected_revision:snap.batch.revision,records:[{id:s.id,source_revision:s.source_revision,secret_envelope:e}]};
-      const token=await reauth();
-      try{await api('/vault/migrations/'+src.batch.batch_id+'/stage',body,token);}catch{
-        // Resolve an uncertain response with exactly the same request ID and ciphertext.
-        await api('/vault/migrations/'+src.batch.batch_id+'/stage',body,token);
+  const send=async(kind:string,records:any[])=>{
+    const body={request_id:crypto.randomUUID(),expected_revision:snap.batch.revision,records};
+    await retryRateLimit(async()=>{
+      // Every distinct write has fresh one-time authorization; a rate-limited write
+      // reacquires authorization after waiting, since the original may have expired.
+      const token=await retryRateLimit(reauth,sleep);
+      try {await api('/vault/migrations/'+src.batch.batch_id+'/'+kind,body,token);}
+      catch(error) {
+        if(error instanceof RateLimitError) throw error;
+        // Uncertain response: identical request ID and ciphertext, never re-encrypt.
+        await api('/vault/migrations/'+src.batch.batch_id+'/'+kind,body,token);
       }
-      snap=await snapshot(api,src.batch.batch_id);validate();d=snap.records[i];
+    },sleep);
+    snap=await snapshot(read,src.batch.batch_id);validate();
+  };
+  // Both endpoints permit 100 records. Even maximum-size envelopes fit stage's
+  // 2 MiB bound; receipts fit 64 KiB. Read back each staged chunk before receipt.
+  for(let offset=0;offset<src.records.length;offset+=100) {
+    const inputs=src.records.slice(offset,offset+100),stage=[];
+    const missing=inputs.filter((_:any,j:number)=>!snap.records[offset+j].secret_envelope);
+    if(missing.length) {
+      const live=await read('/vault');requireThat(live.vault.vault_id===v.vault_id&&live.vault.vault_key_version===v.vault_key_version);
+      for(const s of missing) {
+        const c={user_id:v.user_id,vault_id:v.vault_id,vault_key_version:v.vault_key_version,secret_id:crypto.randomUUID(),secret_version:1};
+        const e=await encryptSecret(key,c,s.legacy_value,live.vault.dek_wrap_count+stage.length);
+        stage.push({id:s.id,source_revision:s.source_revision,secret_envelope:e});
+      }
+      await send('stage',stage);
     }
-    const hash=await envelopeDigest(d.secret_envelope);requireThat(hash===d.envelope_sha256);
-    const plain=await decryptSecret(key,context(v,d.secret_envelope),d.secret_envelope);requireThat(plain===s.legacy_value);
-    if(!d.verified){
-      const body={request_id:crypto.randomUUID(),expected_revision:snap.batch.revision,records:[{id:s.id,source_revision:s.source_revision,envelope_sha256:hash}]};
-      const token=await reauth();try{await api('/vault/migrations/'+src.batch.batch_id+'/receipt',body,token);}catch{await api('/vault/migrations/'+src.batch.batch_id+'/receipt',body,token);}
-      snap=await snapshot(api,src.batch.batch_id);validate();
+    const receipts=[];
+    for(let j=0;j<inputs.length;j++) {
+      const s=inputs[j],d=snap.records[offset+j];
+      const hash=await envelopeDigest(d.secret_envelope);requireThat(hash===d.envelope_sha256);
+      const plain=await decryptSecret(key,context(v,d.secret_envelope),d.secret_envelope);requireThat(plain===s.legacy_value);
+      if(!d.verified) receipts.push({id:s.id,source_revision:s.source_revision,envelope_sha256:hash});
     }
+    if(receipts.length) await send('receipt',receipts);
   }
   requireThat(snap.batch.verified_count===src.records.length);return snap.batch;
 }

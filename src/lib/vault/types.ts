@@ -25,6 +25,7 @@ export class VaultError extends Error {
 }
 export type VaultCommand =
   | { action: 'initialize'; userId: string; password: string }
+  | { action: 'resumePrepared'; userId: string; vault: VaultConfig; password: string }
   | { action: 'unlock'; userId: string; vault: VaultConfig; password: string }
   | { action: 'credentials'; userId: string; vault: VaultConfig; password?: string; recoveryKey?: string; newPassword: string }
   | { action: 'verifyRecovery'; material: RecoveryMaterial }

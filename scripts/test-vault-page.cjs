@@ -4,7 +4,7 @@ const fs=require('node:fs/promises');
 const base=process.env.VAULT_PAGE_URL||'http://localhost:4180';
 (async()=>{
 for(const channel of (process.env.VAULT_BROWSERS||'chromium,msedge').split(',')) {
- const browser=await chromium.launch({headless:true,...(channel==='chromium'?{}:{channel})});
+ const browser=await chromium.launch({headless:!process.env.VAULT_NATIVE,...(channel==='chromium'?{}:{channel}),...(process.env.VAULT_NATIVE?{ignoreDefaultArgs:true,args:['--remote-debugging-pipe','--no-first-run','--no-default-browser-check','--user-data-dir='+require('node:fs').mkdtempSync(require('node:path').join(require('node:os').tmpdir(),'forge-review-'))]}:{})});
  const context=await browser.newContext({acceptDownloads:true});
  const page=await context.newPage();page.setDefaultTimeout(15000);
  const password='Fictional vault phrase 2026!', secret='  fictional-secret-中文-前2  ', replacement='fictional-replacement-2026';
@@ -56,10 +56,26 @@ for(const channel of (process.env.VAULT_BROWSERS||'chromium,msedge').split(','))
   await page.getByRole('button',{name:'下载恢复材料',exact:true}).waitFor();
   const downloaded=page.waitForEvent('download');await page.getByRole('button',{name:'下载恢复材料',exact:true}).click();
   const material=JSON.parse(await fs.readFile(await (await downloaded).path(),'utf8'));secrets.push(material.recovery_key);
+  const pauseAndResume=async(pass)=>{
+    if(process.env.VAULT_NATIVE) {
+      const cdp=await context.newCDPSession(page);await cdp.send('Emulation.setFocusEmulationEnabled',{enabled:false});
+      const other=await context.newPage();await (await context.newCDPSession(other)).send('Emulation.setFocusEmulationEnabled',{enabled:false});
+      await other.goto('about:blank');await other.bringToFront();
+      await page.getByLabel('草稿解锁密码',{exact:true}).waitFor({state:'attached'});
+      await other.close();await page.bringToFront();await cdp.detach();
+    } else await page.evaluate(()=>window.dispatchEvent(new Event('blur')));
+    await page.getByLabel('草稿解锁密码',{exact:true}).waitFor();
+    assert((await page.locator('input[type=password]').evaluateAll(xs=>xs.map(x=>x.value))).every(x=>x===''));
+    await page.getByLabel('草稿解锁密码',{exact:true}).fill(pass);
+    await page.getByRole('button',{name:'继续确认恢复材料',exact:true}).click();
+    await page.getByLabel('重新输入恢复密钥',{exact:true}).waitFor();
+    assert(await page.getByRole('button',{name:'保存加密保险库',exact:true}).isDisabled());
+  };
+  await pauseAndResume(password);
   await page.getByLabel('重新输入恢复密钥',{exact:true}).fill(material.recovery_key);
   await page.getByRole('button',{name:'验证恢复材料',exact:true}).click();
   await page.getByRole('button',{name:'保存加密保险库',exact:true}).click();
-  await page.getByText('已解锁',{exact:true}).waitFor();
+  await page.getByText('已解锁',{exact:true}).waitFor();assert.equal(vault.vault_id,material.vault_id);
   const btn=(name)=>page.getByRole('button',{name:new RegExp('^'+[...name].join('\\s*')+'$')});
   await btn('新增密钥').click();await page.getByLabel('供应商',{exact:true}).fill('openai');await page.getByLabel('名称',{exact:true}).fill('fixture');await page.getByLabel('业务密钥',{exact:true}).fill(secret);
   await btn('OK').click();await page.getByRole('cell',{name:'fixture',exact:true}).waitFor();
@@ -90,6 +106,7 @@ for(const channel of (process.env.VAULT_BROWSERS||'chromium,msedge').split(','))
   await page.getByLabel('新的解锁密码',{exact:true}).fill(nextPassword);await btn('生成新恢复材料').click();
   const nextDownload=page.waitForEvent('download');await btn('下载恢复材料').click();
   const nextMaterial=JSON.parse(await fs.readFile(await (await nextDownload).path(),'utf8'));secrets.push(nextMaterial.recovery_key);
+  await pauseAndResume(nextPassword);
   await page.getByLabel('重新输入恢复密钥',{exact:true}).fill(nextMaterial.recovery_key);await btn('验证恢复材料').click();
   await page.getByLabel('账号登录密码',{exact:true}).fill('fixture-account-password');await btn('保存加密保险库').click();await page.getByText('已解锁',{exact:true}).waitFor();
   await btn('查看').click();await page.getByText(replacement,{exact:true}).waitFor();await btn('隐藏').click();

@@ -11,7 +11,6 @@ import {
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useKnowledgeStore } from '@/stores/knowledge';
-import { favoriteDocument, unfavoriteDocument } from '@/services/knowledge';
 import MarkdownViewer from '@/components/knowledge/MarkdownViewer';
 import CommentSection from '@/components/knowledge/CommentSection';
 import dayjs from 'dayjs';
@@ -26,6 +25,8 @@ export default function DocumentViewPage() {
     currentDocument: doc,
     isLiked,
     isFavorited,
+    favoriteDocument,
+    unfavoriteDocument,
     fetchDocument,
     likeDocument,
     unlikeDocument,
@@ -33,6 +34,7 @@ export default function DocumentViewPage() {
     clearDocument,
   } = useKnowledgeStore();
 
+  const [favoriteBusy,setFavoriteBusy] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
 
   useEffect(() => {
@@ -61,7 +63,8 @@ export default function DocumentViewPage() {
   };
 
   const handleFavorite = async () => {
-    if (!id) return;
+    if (!id || favoriteBusy) return;
+    setFavoriteBusy(true);
     try {
       if (isFavorited) {
         await unfavoriteDocument(Number(id));
@@ -72,7 +75,7 @@ export default function DocumentViewPage() {
       }
     } catch {
       message.error('操作失败');
-    }
+    } finally { setFavoriteBusy(false); }
   };
 
   if (!doc) return null;
@@ -141,6 +144,7 @@ export default function DocumentViewPage() {
           <Button
             size="large"
             icon={isFavorited ? <StarFilled style={{ color: '#faad14' }} /> : <StarOutlined />}
+            loading={favoriteBusy}
             onClick={handleFavorite}
           >
             {isFavorited ? '已收藏' : '收藏'}
