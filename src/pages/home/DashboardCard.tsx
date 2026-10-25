@@ -1,15 +1,18 @@
+import { useRequestError } from '@/hooks/useRequestError';
 import { useState, useEffect } from 'react';
 import { Row, Col, Statistic, Spin } from 'antd';
 import { KeyOutlined, FolderOutlined, LinkOutlined } from '@ant-design/icons';
 import { getDashboardStats, type DashboardStats } from '@/services/dashboard';
 
 export default function DashboardCard() {
+  const reportError = useRequestError();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     getDashboardStats()
       .then(setStats)
+      .catch(reportError)
       .finally(() => setLoading(false));
   }, []);
 

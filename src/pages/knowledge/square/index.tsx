@@ -1,3 +1,4 @@
+import { useRequestError } from '@/hooks/useRequestError';
 import { useState, useEffect } from 'react';
 import { Card, Input, Tabs, Typography, Empty, Row, Col, Pagination } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
@@ -9,6 +10,7 @@ import type { Document } from '@/types/knowledge';
 const { Text } = Typography;
 
 export default function KnowledgeSquarePage() {
+  const reportError = useRequestError();
   const [activeTab, setActiveTab] = useState('latest');
   const [documents, setDocuments] = useState<Document[]>([]);
   const [total, setTotal] = useState(0);
@@ -31,8 +33,8 @@ export default function KnowledgeSquarePage() {
       }
       setDocuments(res.data);
       setTotal(res.total);
-    } catch {
-      // ignore
+    } catch (error) {
+      reportError(error);
     } finally {
       setLoading(false);
     }
@@ -43,13 +45,9 @@ export default function KnowledgeSquarePage() {
   }, [activeTab, page, pageSize]);
 
   const handleSearch = () => {
-    if (keyword.trim()) {
-      setActiveTab('search');
-    } else {
-      setActiveTab('latest');
-    }
-    setPage(1);
-    fetchDocs();
+    const target=keyword.trim()?'search':'latest';
+    if(activeTab===target && page===1) void fetchDocs();
+    else { setActiveTab(target); setPage(1); }
   };
 
   return (

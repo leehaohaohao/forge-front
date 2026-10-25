@@ -1,3 +1,4 @@
+import { useRequestError } from '@/hooks/useRequestError';
 import { useEffect, useState, useCallback } from 'react';
 import { Card, Form, Switch, Button, Space, Typography, App } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
@@ -74,21 +75,22 @@ function ShortcutInput({ value, onChange }: { value?: string; onChange?: (v: str
 }
 
 export default function SettingsPage() {
+  const reportError = useRequestError();
   const { message } = App.useApp();
-  const { settings, loading, fetchSettings, updateSettings, resetSettings } = useSettingsStore();
+  const { settings, loading, updateSettings, resetSettings } = useSettingsStore();
   const [form] = Form.useForm();
   const [resetting, setResetting] = useState(false);
 
-  useEffect(() => {
-    fetchSettings();
-  }, []);
+  // AppLayout loads settings once and owns load errors.
+  const [saving,setSaving] = useState(false);
 
   useEffect(() => {
     form.setFieldsValue(settings);
   }, [settings, form]);
 
   const handleValuesChange = (_: Partial<Settings>, allValues: Settings) => {
-    updateSettings(allValues);
+    setSaving(true);
+    updateSettings(allValues).catch(reportError).finally(()=>setSaving(false));
   };
 
   const handleReset = async () => {
@@ -109,12 +111,13 @@ export default function SettingsPage() {
         <Text strong style={{ fontSize: 18 }}>
           用户设置
         </Text>
-        <Button icon={<ReloadOutlined />} loading={resetting} onClick={handleReset}>
+        <Button icon={<ReloadOutlined />} loading={resetting} disabled={saving || loading} onClick={handleReset}>
           恢复默认
         </Button>
       </div>
 
       <Form
+        disabled={saving || resetting || loading}
         form={form}
         layout="vertical"
         initialValues={settings}

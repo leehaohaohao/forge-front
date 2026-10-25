@@ -1,3 +1,4 @@
+import { useRequestError } from '@/hooks/useRequestError';
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import { ConfigProvider, App as AntApp, Layout, Menu, Button, Space, Typography, theme } from 'antd';
@@ -31,6 +32,7 @@ const sidebarItems = [
 ];
 
 function AppLayout() {
+  const reportError = useRequestError();
   const location = useLocation();
   const { user, isLoggedIn, logout } = useAuthStore();
   const { settings, fetchSettings } = useSettingsStore();
@@ -39,7 +41,7 @@ function AppLayout() {
   useQuickLinkShortcut();
 
   useEffect(() => {
-    fetchSettings();
+    fetchSettings().catch(reportError);
   }, []);
 
   useEffect(() => {
@@ -48,7 +50,7 @@ function AppLayout() {
 
   useEffect(() => {
     if (settings.quickLink.panelDefaultOpen) {
-      setPanelVisible(true);
+      setPanelVisible(true).catch(reportError);
     }
   }, [settings.quickLink.panelDefaultOpen]);
 

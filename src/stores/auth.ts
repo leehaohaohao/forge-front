@@ -81,3 +81,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ token, user, isLoggedIn: true, authReady: true });
   },
 }));
+
+// Avoid an api -> auth store -> vault -> api import cycle. The interceptor emits
+// this for both HTTP 401 and legacy HTTP 200/code 401 (excluding reauth 40101).
+window.addEventListener('forge-auth-invalid', () => useAuthStore.getState().logout());

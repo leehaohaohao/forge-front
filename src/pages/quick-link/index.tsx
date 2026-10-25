@@ -1,3 +1,4 @@
+import { useRequestError } from '@/hooks/useRequestError';
 import { useState, useEffect, useMemo } from 'react';
 import {
   Card,
@@ -31,6 +32,7 @@ import type { QuickLink } from '@/types/quickLink';
 const { Text } = Typography;
 
 export default function QuickLinkPage() {
+  const reportError = useRequestError();
   const { message } = App.useApp();
   const openInNewTab = useSettingsStore((s) => s.settings.quickLink.openInNewTab);
   const togglePanelShortcut = useSettingsStore((s) => s.settings.shortcuts.togglePanel);
@@ -60,14 +62,9 @@ export default function QuickLinkPage() {
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
-    fetchWorkspaces();
+    fetchWorkspaces().then(()=>fetchLinks()).catch(reportError);
   }, []);
 
-  useEffect(() => {
-    if (currentWorkspaceId) {
-      fetchLinks(currentWorkspaceId);
-    }
-  }, [currentWorkspaceId]);
 
   const currentWorkspace = useMemo(
     () => workspaces.find((w) => w.id === currentWorkspaceId),
@@ -304,7 +301,7 @@ export default function QuickLinkPage() {
               key={tab.key}
               type={String(currentWorkspaceId) === tab.key ? 'primary' : 'default'}
               size="small"
-              onClick={() => setCurrentWorkspace(Number(tab.key))}
+              onClick={() => setCurrentWorkspace(Number(tab.key)).catch(reportError)}
             >
               {tab.label}
             </Button>

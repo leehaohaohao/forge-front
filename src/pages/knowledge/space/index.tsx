@@ -1,3 +1,4 @@
+import { useRequestError } from '@/hooks/useRequestError';
 import { useState, useEffect, useMemo } from 'react';
 import {
   Card,
@@ -37,6 +38,7 @@ import type { Space as SpaceType, Folder, Document } from '@/types/knowledge';
 const { Text } = Typography;
 
 export default function KnowledgeSpacePage() {
+  const reportError = useRequestError();
   const { message } = App.useApp();
   const navigate = useNavigate();
   const location = useLocation();
@@ -78,7 +80,7 @@ export default function KnowledgeSpacePage() {
   const [folderForm] = Form.useForm();
 
   useEffect(() => {
-    setCurrentSpace(null);
+    setCurrentSpace(null).catch(reportError);
   }, [location.pathname]);
 
   const currentSpace = useMemo(() => spaces.find((s) => s.id === currentSpaceId), [spaces, currentSpaceId]);
@@ -108,8 +110,8 @@ export default function KnowledgeSpacePage() {
         message.success('创建成功');
       }
       setSpaceModalOpen(false);
-    } catch {
-      // validation failed
+    } catch (error) {
+      reportError(error);
     }
   };
 
@@ -148,8 +150,8 @@ export default function KnowledgeSpacePage() {
         message.success('创建成功');
       }
       setFolderModalOpen(false);
-    } catch {
-      // validation failed
+    } catch (error) {
+      reportError(error);
     }
   };
 
@@ -200,12 +202,12 @@ export default function KnowledgeSpacePage() {
 
   const breadcrumbItems = useMemo(() => {
     const items: { title: React.ReactNode; onClick: () => void }[] = [
-      { title: <HomeOutlined />, onClick: () => setCurrentSpace(null) },
+      { title: <HomeOutlined />, onClick: () => setCurrentSpace(null).catch(reportError) },
     ];
     if (currentSpaceId === -1) {
       items.push({ title: <span><StarOutlined style={{ color: '#faad14', marginRight: 4 }} />我的收藏</span>, onClick: () => {} });
     } else if (currentSpace) {
-      items.push({ title: <span>{currentSpace.name}</span>, onClick: () => setCurrentFolder(null) });
+      items.push({ title: <span>{currentSpace.name}</span>, onClick: () => setCurrentFolder(null).catch(reportError) });
     }
     if (currentFolderId) {
       const folder = folders.find((f) => f.id === currentFolderId);
@@ -314,7 +316,7 @@ export default function KnowledgeSpacePage() {
               background: currentSpaceId === null ? '#e6f4ff' : 'transparent',
               marginBottom: 4,
             }}
-            onClick={() => setCurrentSpace(null)}
+            onClick={() => setCurrentSpace(null).catch(reportError)}
           >
             <HomeOutlined style={{ marginRight: 8 }} />
             <Text>根目录</Text>
@@ -327,7 +329,7 @@ export default function KnowledgeSpacePage() {
               background: currentSpaceId === -1 ? '#e6f4ff' : 'transparent',
               marginBottom: 4,
             }}
-            onClick={setFavoritesMode}
+            onClick={()=>{void setFavoritesMode().catch(reportError);}}
           >
             <StarOutlined style={{ marginRight: 8, color: '#faad14' }} />
             <Text>我的收藏</Text>
@@ -344,7 +346,7 @@ export default function KnowledgeSpacePage() {
                 justifyContent: 'space-between',
                 alignItems: 'center',
               }}
-              onClick={() => setCurrentSpace(space.id)}
+              onClick={() => setCurrentSpace(space.id).catch(reportError)}
             >
               <Text ellipsis style={{ flex: 1 }}>{space.name}</Text>
               <Space size={0}>
@@ -395,7 +397,7 @@ export default function KnowledgeSpacePage() {
                     size="small"
                     style={{ width: 160, cursor: 'pointer' }}
                     styles={{ body: { padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' } }}
-                    onClick={() => setCurrentFolder(folder.id)}
+                    onClick={() => setCurrentFolder(folder.id).catch(reportError)}
                   >
                     <Space>
                       <FolderOutlined style={{ color: '#faad14' }} />
@@ -423,13 +425,13 @@ export default function KnowledgeSpacePage() {
             onChange={(p) => {
               setPagination({ current: p.current, pageSize: p.pageSize });
               if (currentFolderId) {
-                fetchDocuments({ folder_id: currentFolderId });
+                fetchDocuments({ folder_id: currentFolderId }).catch(reportError);
               } else if (currentSpaceId === -1) {
-                fetchFavoriteDocuments();
+                fetchFavoriteDocuments().catch(reportError);
               } else if (currentSpaceId) {
-                fetchDocuments({ space_id: currentSpaceId });
+                fetchDocuments({ space_id: currentSpaceId }).catch(reportError);
               } else {
-                fetchRootDocuments();
+                fetchRootDocuments().catch(reportError);
               }
             }}
             locale={{

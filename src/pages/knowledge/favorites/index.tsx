@@ -1,3 +1,4 @@
+import { useRequestError } from '@/hooks/useRequestError';
 import { useEffect } from 'react';
 import { Card, Table, Tag, Space, Typography, App, Empty, Button, Popconfirm } from 'antd';
 import { EyeOutlined, LikeOutlined, StarOutlined, DeleteOutlined } from '@ant-design/icons';
@@ -9,6 +10,7 @@ import dayjs from 'dayjs';
 const { Text } = Typography;
 
 export default function KnowledgeFavoritesPage() {
+  const reportError = useRequestError();
   const { message } = App.useApp();
   const navigate = useNavigate();
   const {
@@ -20,14 +22,14 @@ export default function KnowledgeFavoritesPage() {
   } = useKnowledgeStore();
 
   useEffect(() => {
-    fetchFavoriteDocuments();
+    fetchFavoriteDocuments().catch(reportError);
   }, []);
 
   const handleUnfavorite = async (id: number) => {
     try {
       await unfavoriteDocument(id);
       message.success('已取消收藏');
-      fetchFavoriteDocuments();
+      fetchFavoriteDocuments().catch(reportError);
     } catch {
       message.error('操作失败');
     }
@@ -104,7 +106,7 @@ export default function KnowledgeFavoritesPage() {
         pagination={{ ...pagination, showSizeChanger: true, showTotal: (t) => `共 ${t} 条` }}
         onChange={(p) => {
           setPagination({ current: p.current, pageSize: p.pageSize });
-          fetchFavoriteDocuments();
+          fetchFavoriteDocuments().catch(reportError);
         }}
         locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无收藏" /> }}
         style={{ padding: '0 24px' }}

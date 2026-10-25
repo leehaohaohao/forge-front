@@ -9,7 +9,7 @@ for(const channel of (process.env.VAULT_BROWSERS||'chromium,msedge').split(','))
  const page=await context.newPage();page.setDefaultTimeout(15000);
  const password='Fictional vault phrase 2026!', secret='  fictional-secret-中文-前2  ', replacement='fictional-replacement-2026';
  const user='9007199254740993';
- const secrets=[password,secret,replacement];const requests=[],errors=[];let vault=null,records=[],envelopes={},access=0,conflict=false,delay=0,tamper=false,unauthorized=false;
+ const secrets=[password,secret,replacement];const requests=[],errors=[];let vault=null,records=[],envelopes={},access=0,conflict=false,delay=0,tamper=false,unauthorized=false,reauthFailure;
  page.on('pageerror',e=>errors.push(e.message));
  await page.addInitScript(()=>{
    localStorage.setItem('forge_token','fixture-auth');localStorage.setItem('forge_token_time',String(Date.now()));localStorage.setItem('forge_user',JSON.stringify({id:7,username:'测试用户',status:'active'}));
@@ -20,12 +20,12 @@ for(const channel of (process.env.VAULT_BROWSERS||'chromium,msedge').split(','))
    const r=route.request(),url=new URL(r.url()),path=url.pathname,method=r.method(),body=r.postDataJSON();
    requests.push({path,method,body});
    const respond=(data,status=200,code=0)=>route.fulfill({status,contentType:'application/json',headers:{'Cache-Control':'no-store'},body:JSON.stringify({code,message:code?'request failed':'success',data})});
-   if(unauthorized&&path==='/forge/token'){unauthorized=false;return respond(null,401,401);}
+   if(unauthorized&&path==='/forge/token'){unauthorized=false;return respond(null,process.env.VAULT_AUTH_EXPIRY==='legacy'?200:401,401);}
    if(path==='/forge/vault'&&method==='GET')return respond({initialized:!!vault,user_id:user,vault});
    if(path==='/forge/vault'&&method==='POST'){
      assert.equal(vault,null);assert(!('user_id' in body));vault={...body,user_id:user,revision:'1',created_at:new Date().toISOString(),updated_at:new Date().toISOString(),dek_wrap_count:0,dek_wrap_warn_at:900000,dek_wrap_limit:1000000};return respond(vault);
    }
-   if(path==='/forge/auth/reauth') { assert.equal(body.purpose,'vault_credentials');assert.equal(body.account_password,'fixture-account-password');return respond({reauth_token:'fixture-reauth'}); }
+   if(path==='/forge/auth/reauth') { if(reauthFailure!==undefined){const status=reauthFailure;reauthFailure=undefined;return respond(null,status,40101);} assert.equal(body.purpose,'vault_credentials');assert.equal(body.account_password,'fixture-account-password');return respond({reauth_token:'fixture-reauth'}); }
    if(path==='/forge/vault/credentials') { assert.equal(r.headers()['x-forge-reauth'],'fixture-reauth');assert.equal(body.expected_revision,vault.revision);const {expected_revision,...wraps}=body;vault={...vault,...wraps,revision:String(BigInt(vault.revision)+1n)};return respond(vault); }
    if(path==='/forge/token'&&method==='GET')return respond({list:records,total:records.length,page:1,page_size:10});
    if(path==='/forge/token'&&method==='POST'){
@@ -134,6 +134,13 @@ for(const channel of (process.env.VAULT_BROWSERS||'chromium,msedge').split(','))
   const nextMaterial=JSON.parse(await fs.readFile(await (await nextDownload).path(),'utf8'));secrets.push(nextMaterial.recovery_key);
   await pauseAndResume(nextPassword);
   await page.getByLabel('重新输入恢复密钥',{exact:true}).fill(nextMaterial.recovery_key);await btn('验证恢复材料').click();
+  for(const status of [200,401]) {
+    reauthFailure=status;await page.getByLabel('账号登录密码',{exact:true}).fill('fixture-account-password');await btn('保存加密保险库').click();
+    await page.getByText('请重新验证账号身份，账号密码与保险库密码不同。',{exact:true}).waitFor();
+    assert.equal(await page.evaluate(()=>localStorage.getItem('forge_token')),'fixture-auth');assert(page.url().endsWith('/app/token'));
+    assert(await btn('保存加密保险库').isEnabled());await page.clock.runFor(5500);
+    await page.getByText('请重新验证账号身份，账号密码与保险库密码不同。',{exact:true}).waitFor({state:'hidden'});
+  }
   await page.getByLabel('账号登录密码',{exact:true}).fill('fixture-account-password');await btn('保存加密保险库').click();await page.getByText('已解锁',{exact:true}).waitFor();
   await btn('查看').click();await page.getByText(replacement,{exact:true}).waitFor();await btn('隐藏').click();
   // Legacy rows allow metadata only, and deletion carries a revision in the JSON body.
@@ -149,6 +156,7 @@ for(const channel of (process.env.VAULT_BROWSERS||'chromium,msedge').split(','))
   const stored=await page.evaluate(()=>JSON.stringify({local:{...localStorage},session:{...sessionStorage}}));
   for(const value of secrets){assert(!JSON.stringify(requests).includes(value),'plaintext in request');assert(!stored.includes(value),'plaintext in storage');}
   unauthorized=true;await btn('搜索').click();await page.waitForURL('**/app/login');
+  assert.deepEqual(await page.evaluate(()=>['forge_token','forge_token_time','forge_user'].map(k=>localStorage.getItem(k))),[null,null,null]);
   assert.equal(errors.length,0,errors.join('\n'));
   console.log(channel+' '+browser.version()+': PASS production page: initialize, precise IDs, encrypted CRUD, metadata-only, copy retry, tamper, conflict, late response, hide, wrong password, timers, storage/network');
  } catch(e) { console.log('page test failed at '+page.url()); console.log(errors); throw e; } finally {await browser.close();}
