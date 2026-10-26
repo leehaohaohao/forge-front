@@ -13,3 +13,5 @@
 - Preserve ignored local configuration, credentials, generated builds, and editor files; do not force-add them.
 
 - For every new bug fix, create a dedicated branch before editing (normally from the latest default branch). After the fix and its checks are complete, commit, push, and open a PR; do not merge without review and required checks.
+
+- For the vault user-flow and migration plan (docs/vault-user-flow-and-migration-plan.md in the backend repository), commit validated stages locally. Open a combined PR after the full plan is implemented, not a PR per stage (2026-10-26 plan update).

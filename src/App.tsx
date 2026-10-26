@@ -1,7 +1,7 @@
 import { useRequestError } from '@/hooks/useRequestError';
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import { ConfigProvider, App as AntApp, Layout, Menu, Button, Space, Typography, theme } from 'antd';
+import { ConfigProvider, App as AntApp, Layout, Menu, Button, Space, Typography, theme, Grid } from 'antd';
 import { KeyOutlined, HomeOutlined, MenuFoldOutlined, MenuUnfoldOutlined, LogoutOutlined, UserOutlined, LinkOutlined, SettingOutlined, ReadOutlined, CompassOutlined } from '@ant-design/icons';
 import { useAuthStore } from '@/stores/auth';
 import { useSettingsStore } from '@/stores/settings';
@@ -33,6 +33,8 @@ const sidebarItems = [
 
 function AppLayout() {
   const reportError = useRequestError();
+  const screens=Grid.useBreakpoint();
+  const narrow=screens.md===false;
   const location = useLocation();
   const { user, isLoggedIn, logout } = useAuthStore();
   const { settings, fetchSettings } = useSettingsStore();
@@ -65,7 +67,7 @@ function AppLayout() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '0 24px',
+          padding: narrow?'0 12px':'0 24px',
           background: '#fff',
           boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
           zIndex: 10,
@@ -75,7 +77,7 @@ function AppLayout() {
         <div style={{ fontSize: 20, fontWeight: 600, color: '#1677ff', flexShrink: 0 }}>Forge</div>
         <GlobalSearch />
         <Space>
-          <Text type="secondary">
+          <Text type="secondary" style={{display:narrow?'none':undefined}}>
             <UserOutlined style={{ marginRight: 4 }} />
             {user?.username}
           </Text>
@@ -93,7 +95,8 @@ function AppLayout() {
       <Layout>
         <Sider
           collapsible
-          collapsed={collapsed}
+          collapsed={narrow||collapsed}
+          collapsedWidth={narrow?48:80}
           onCollapse={setCollapsed}
           trigger={null}
           width={200}
@@ -104,8 +107,8 @@ function AppLayout() {
         >
           <div
             style={{
-              display: 'flex',
-              justifyContent: collapsed ? 'center' : 'flex-end',
+              display: narrow?'none':'flex',
+              justifyContent: narrow||collapsed ? 'center' : 'flex-end',
               padding: '12px 16px',
               cursor: 'pointer',
             }}
@@ -121,7 +124,7 @@ function AppLayout() {
             style={{ border: 'none' }}
           />
         </Sider>
-        <Content style={{ padding: 24, background: '#f0f2f5', overflow: 'auto' }}>
+        <Content style={{ padding: narrow?12:24, minWidth:0, background: '#f0f2f5', overflow: 'auto' }}>
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/token" element={<TokenPage />} />

@@ -3,6 +3,9 @@ import { VaultError } from './types';
 export function vaultMessage(error:unknown) {
   if(error instanceof ApiError) {
     const code=error.businessCode;
+    if(code===40906)return '记录迁移中，请等待管理员处理；已有密文仍可读取。';
+    if(code===40901)return '请先初始化保险库，请刷新准备状态后继续。';
+    if(code===40905)return '保险库已达到写入上限，请联系维护人员。';
     if(error.kind==='conflict') return code===40903?'历史记录待迁移，暂时不能查看、复制或替换。':'数据已变更或提交结果不确定，已刷新列表。请核对后重新操作，不会自动覆盖。';
     if(code===40101) return '请重新验证账号身份，账号密码与保险库密码不同。';
     if(error.kind==='rate-limit') return '请求过于频繁，请稍后重试。';

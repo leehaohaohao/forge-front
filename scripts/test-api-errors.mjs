@@ -36,5 +36,6 @@ try {
  const fallback=normalizeApiError(undefined,{status:422,data:{code:400,request_id:'body-trace'},headers:{},config:{url:'/auth/register'}});
  assert.equal(fallback.requestId,'body-trace');assert.equal(fallback.httpStatus,422);assert.equal(fallback.businessCode,400);
  assert.equal(apiErrorMessage(new Error('RAW exception')),'请求未完成，请稍后重试');
+ assert.equal(normalizeApiError(undefined,{status:429,data:{code:429},headers:{'retry-after':'20'},config:{}}).retryAfterSeconds,20);
  console.log('PASS normalized metadata, safe messages, HTTP/legacy expiry, 40101, network and cancellation');
 } finally {await unlink(path);}
