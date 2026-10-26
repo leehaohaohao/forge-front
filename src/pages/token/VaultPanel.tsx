@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Alert, Button, Card, Input, Space, Typography, App } from 'antd';
 import { bindVault, operation, vaultSession } from '@/lib/vault/runtime';
 import { readVault, reauthenticate, vaultTransport, type VaultStatus } from '@/services/vault';
@@ -9,6 +9,7 @@ type Operation = ReturnType<typeof operation>;
 type Lifetime = {active:boolean; operations:Set<Operation>};
 export default function VaultPanel() {
   const {message}=App.useApp();
+  const vaultForm=useId(), reauthForm=useId();
   const [info,setInfo]=useState<VaultStatus>();
   const [{state,pending},setSession]=useState(()=>({state:vaultSession.state,pending:vaultSession.pendingConfirmation}));
   const [mode,setMode]=useState<'unlock'|'password'|'recovery'>('unlock');
@@ -68,11 +69,14 @@ export default function VaultPanel() {
     vaultSession.recoverySaved();setSaved(true);message.info('已发起下载，请在浏览器下载记录中查找 forge-recovery.json；文件是否保存成功请自行确认。');
   }
   return <Card title={<Space>个人保险库 <Typography.Text type="secondary">{state==='unlocked'?'已解锁':state==='pending'?'等待恢复材料验证':'已锁定'}</Typography.Text></Space>} extra={<Button onClick={()=>vaultSession.lock()}>锁定并清理</Button>}>
+    {/* Explicit form owners prevent Chrome from pairing the header search with secrets. */}
+    <form id={vaultForm} autoComplete="off" onSubmit={e=>e.preventDefault()} />
+    <form id={reauthForm} autoComplete="off" onSubmit={e=>e.preventDefault()} />
     <Alert type="info" showIcon title="使用独立于登录密码的长口令。解锁密码和恢复材料只在本地处理。" description="浏览器的保存密码提示、下载面板或地址栏获得焦点不会锁定。查看30秒自动隐藏，5分钟无操作、页面进入后台、隐藏或离开本页会锁定。复制后内容留在系统剪贴板，请自行处理。丢失密码与恢复材料后无法找回。" />
     {info && !pending && !recovery && (state!=='unlocked'||mode!=='unlock') && <div style={{marginTop:16,maxWidth:560}}>
       {info.initialized && <Space wrap style={{marginBottom:12}}><Button disabled={busy} onClick={()=>{clear();setMode('unlock');}}>密码解锁</Button><Button disabled={busy} onClick={()=>{clear();setMode('recovery');}}>使用恢复材料</Button><Button disabled={busy} onClick={()=>{clear();setMode('password');}}>修改解锁密码</Button></Space>}
-      {mode==='recovery'?<Input.Password aria-label="原恢复密钥" autoComplete="off" value={entry} onChange={e=>setEntry(e.target.value)} placeholder="原恢复密钥" disabled={busy}/>:<Input.Password aria-label="独立解锁密码" autoComplete="off" value={password} onChange={e=>setPassword(e.target.value)} placeholder={info.initialized?'独立解锁密码':'设置独立长口令（至少12个字符）'} disabled={busy}/>}
-      {info.initialized && mode!=='unlock' && <Input.Password style={{marginTop:8}} aria-label="新的解锁密码" autoComplete="off" value={next} onChange={e=>setNext(e.target.value)} placeholder="新的独立长口令" disabled={busy}/>}
+      {mode==='recovery'?<Input.Password aria-label="原恢复密钥" form={vaultForm} name="recovery-key" autoComplete="new-password" value={entry} onChange={e=>setEntry(e.target.value)} placeholder="原恢复密钥" disabled={busy}/>:<Input.Password aria-label="独立解锁密码" form={vaultForm} name="vault-passphrase" autoComplete="new-password" value={password} onChange={e=>setPassword(e.target.value)} placeholder={info.initialized?'独立解锁密码':'设置独立长口令（至少12个字符）'} disabled={busy}/>}
+      {info.initialized && mode!=='unlock' && <Input.Password style={{marginTop:8}} aria-label="新的解锁密码" form={vaultForm} name="new-vault-passphrase" autoComplete="new-password" value={next} onChange={e=>setNext(e.target.value)} placeholder="新的独立长口令" disabled={busy}/>}
       <Button style={{marginTop:8}} type="primary" loading={busy} onClick={()=>run(prepare)}>{!info.initialized?'创建本地保险库':mode==='unlock'?'解锁':'生成新恢复材料'}</Button>
     </div>}
     {!info && <Button loading={busy} onClick={()=>run(async op=>{const v=await readVault(op.signal);op.guard();setInfo(v);})}>读取保险库状态</Button>}
@@ -84,7 +88,7 @@ export default function VaultPanel() {
       </Typography.Paragraph>
       {pending.saved ? <>
         <Typography.Paragraph>恢复文件已发起下载。请在浏览器下载记录中查找 forge-recovery.json，并离线保管。输入刚设置的解锁密码后，可继续验证文件中的恢复密钥。若找不到文件，请放弃草稿并重新开始。</Typography.Paragraph>
-        <Input.Password aria-label="草稿解锁密码" autoComplete="off" value={password} onChange={e=>setPassword(e.target.value)} disabled={busy}/>
+        <Input.Password aria-label="草稿解锁密码" form={vaultForm} name="draft-passphrase" autoComplete="new-password" value={password} onChange={e=>setPassword(e.target.value)} disabled={busy}/>
         <Button disabled={busy} onClick={()=>run(async op=>{await vaultSession.resumePrepared(password);op.guard();setSaved(pending.saved);setVerified(false);})}>继续确认恢复材料</Button>
       </> : <Alert style={{marginBottom:12}} type="warning" showIcon title="恢复文件尚未下载" description="自动锁定已清理恢复密钥，当前草稿无法继续下载或验证。请点击下方“放弃草稿”，重新输入密码生成材料，然后先点击“下载恢复材料”。这不会删除已有密钥。" />}
       <Button disabled={busy} onClick={()=>vaultSession.lock()}>放弃草稿</Button>
@@ -92,9 +96,9 @@ export default function VaultPanel() {
     {pending && state==='pending' && <div style={{marginTop:16,maxWidth:560}}>
       <Typography.Paragraph>尚未完成保存。请先点击“下载恢复材料”（不会自动弹出下载），再从文件中重新输入恢复密钥验证，最后保存加密保险库。不要将恢复材料上传或填写到备注中。</Typography.Paragraph>
       {recovery && <Button type="primary" disabled={busy} onClick={download}>下载恢复材料</Button>}
-      <Input.Password style={{marginTop:8}} aria-label="重新输入恢复密钥" autoComplete="off" value={entry} onChange={e=>{setEntry(e.target.value);setVerified(false);}} disabled={busy}/>
+      <Input.Password style={{marginTop:8}} aria-label="重新输入恢复密钥" form={vaultForm} name="recovery-confirmation" autoComplete="new-password" value={entry} onChange={e=>{setEntry(e.target.value);setVerified(false);}} disabled={busy}/>
       <Button disabled={!saved||busy} onClick={()=>run(async op=>{await vaultSession.verifyRecovery({format_version:pending.format_version,user_id:pending.user_id,vault_id:pending.vault_id,recovery_key:entry});op.guard();setEntry('');setVerified(true);message.success('恢复材料验证成功');})}>验证恢复材料</Button>
-      {info?.initialized && <Input.Password style={{marginTop:8}} aria-label="账号登录密码" autoComplete="off" placeholder="账号登录密码（仅用于身份重认证）" value={account} onChange={e=>setAccount(e.target.value)} disabled={busy}/>}
+      {info?.initialized && <Input.Password style={{marginTop:8}} aria-label="账号登录密码" form={reauthForm} name="account-password" autoComplete="current-password" placeholder="账号登录密码（仅用于身份重认证）" value={account} onChange={e=>setAccount(e.target.value)} disabled={busy}/>}
       <Button type="primary" disabled={!verified||busy} onClick={()=>run(async op=>{
         const reauth=info?.initialized?await reauthenticate(account,op.signal):undefined;op.guard();setAccount('');
         const v=await vaultSession.publish(vaultTransport(op.signal,reauth));op.guard();bindVault(v);setInfo({initialized:true,user_id:v.user_id,vault:v});clear();message.success('保险库已保存并解锁');

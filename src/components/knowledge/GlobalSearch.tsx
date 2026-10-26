@@ -17,7 +17,7 @@ export default function GlobalSearch() {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const wrapperRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLFormElement>(null);
 
   const doSearch = useCallback(async (kw: string) => {
     if (!kw.trim()) {
@@ -68,8 +68,12 @@ export default function GlobalSearch() {
   }, []);
 
   return (
-    <div ref={wrapperRef} style={{ position: 'relative', flex: 1, display: 'flex', justifyContent: 'center' }}>
+    <form role="search" aria-label="全局搜索" autoComplete="off" onSubmit={e=>e.preventDefault()} ref={wrapperRef} style={{ position: 'relative', flex: 1, display: 'flex', justifyContent: 'center' }}>
       <Input
+        type="search"
+        name="knowledge-query"
+        aria-label="搜索知识库"
+        autoComplete="off"
         placeholder="搜索..."
         allowClear
         prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
@@ -144,6 +148,6 @@ export default function GlobalSearch() {
           )}
         </div>
       )}
-    </div>
+    </form>
   );
 }
