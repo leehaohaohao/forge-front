@@ -51,6 +51,20 @@ for(const channel of (process.env.VAULT_BROWSERS||'chromium,msedge').split(','))
  });
  try {
   await page.clock.install(); await page.goto(base+'/app/token');
+  const search=page.getByRole('searchbox',{name:'搜索知识库'});
+  const passphrase=page.getByLabel('独立解锁密码',{exact:true});
+  await passphrase.waitFor();
+  assert.equal(await search.inputValue(),'');
+  assert.equal(await passphrase.inputValue(),'');
+  assert(await passphrase.evaluate(el=>el.form !== null && el.form !== document.querySelector('input[name="knowledge-query"]').form));
+  assert.equal(await passphrase.getAttribute('autocomplete'),'new-password');
+  // Native form submission must never reload or serialize a secret into the URL.
+  const initialURL=page.url();
+  await passphrase.fill('Fictional enter-key check');
+  await passphrase.press('Enter');
+  assert.equal(page.url(),initialURL);
+  assert.equal(await passphrase.inputValue(),'Fictional enter-key check');
+  await passphrase.fill('');
   const discardLockedDraft=async(action,savedFile=false)=>{
     await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));Object.defineProperty(document,'hidden',{configurable:true,value:false});});
     const field=page.getByLabel('草稿解锁密码',{exact:true});
@@ -102,6 +116,7 @@ for(const channel of (process.env.VAULT_BROWSERS||'chromium,msedge').split(','))
   await pauseAndResume(password);
   await page.getByLabel('重新输入恢复密钥',{exact:true}).fill(material.recovery_key);
   await page.getByRole('button',{name:'验证恢复材料',exact:true}).click();
+  await page.waitForFunction(()=>Array.from(document.querySelectorAll('button')).some(b=>b.textContent==='保存加密保险库' && !b.disabled));
   await page.evaluate(()=>window.dispatchEvent(new Event('blur')));
   assert(await page.getByRole('button',{name:'保存加密保险库',exact:true}).isEnabled());
   await page.getByRole('button',{name:'保存加密保险库',exact:true}).click();
