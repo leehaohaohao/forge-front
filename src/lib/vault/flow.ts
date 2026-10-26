@@ -44,7 +44,7 @@ export function flowSteps(s:FlowStatus,draft:boolean) {
 }
 export function capabilityMessage(c?:Capability) {
   if(c?.allowed)return '';
-  return ({vault_not_initialized:'请先完成保险库准备',vault_already_initialized:'保险库已创建',migration_frozen:'记录迁移中，写入已暂停，请等待管理员处理',key_limit:'保险库已达到写入上限，请联系维护人员',version_limit:'数据版本已达到上限，请联系维护人员',not_supported:'迁移申请暂未开放，请联系管理员准备'} as Record<string,string>)[c?.reason??''] ?? '暂时无法执行，请刷新状态后重试';
+  return ({vault_not_initialized:'请先完成保险库准备',vault_already_initialized:'保险库已创建',migration_frozen:'记录迁移中，写入已暂停，请等待管理员处理',key_limit:'保险库已达到写入上限，请联系维护人员',version_limit:'数据版本已达到上限，请联系维护人员',not_supported:'迁移申请暂未开放，请联系管理员准备',no_legacy_records:'没有需要迁移的历史记录',active_request:'已有迁移申请，请查看当前任务'} as Record<string,string>)[c?.reason??''] ?? '暂时无法执行，请刷新状态后重试';
 }
 export function migrationSummary(s:FlowStatus) {
   const b=s.active_batch??s.latest_batch;

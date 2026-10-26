@@ -5,6 +5,7 @@ import { readVault, reauthenticate, vaultTransport, type VaultStatus } from '@/s
 import { vaultMessage } from '@/lib/vault/messages';
 import { VaultError, type RecoveryMaterial } from '@/lib/vault/types';
 import { ApiError } from '@/lib/api-error';
+import MigrationPanel from './MigrationPanel';
 import VaultSteps from './VaultSteps';
 import type {useVaultFlow} from './useVaultFlow';
 import {flowSteps,migrationSummary,capabilityMessage} from '@/lib/vault/flow';
@@ -18,7 +19,9 @@ export default function VaultPanel({flow,createRequested,onCancelIntent,focusReq
   const [mode,setMode]=useState<'unlock'|'password'|'recovery'>('unlock');
   const [password,setPassword]=useState(''),[next,setNext]=useState(''),[entry,setEntry]=useState(''),[account,setAccount]=useState('');
   const [recovery,setRecovery]=useState<RecoveryMaterial>();
-  const [saved,setSaved]=useState(false),[verified,setVerified]=useState(false),[busy,setBusy]=useState(false);
+  const [saved,setSaved]=useState(false),[verified,setVerified]=useState(false),[actionBusy,setBusy]=useState(false);
+  const [migrationBusy,setMigrationBusy]=useState(false);
+  const busy=actionBusy||migrationBusy;
   const mutex=useRef(false);
   const controls=useRef<HTMLDivElement>(null);
   useEffect(()=>{if(focusRequest){setMode('unlock');controls.current?.querySelector<HTMLInputElement>('input')?.focus();}},[focusRequest]);
@@ -73,18 +76,14 @@ export default function VaultPanel({flow,createRequested,onCancelIntent,focusReq
     const a=document.createElement('a');a.href=url;a.download='forge-recovery.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
     vaultSession.recoverySaved();setSaved(true);message.info('已发起下载，请在浏览器下载记录中查找 forge-recovery.json；文件是否保存成功请自行确认。');
   }
-  return <Card className="vault-panel" title={<Space>个人保险库 <Typography.Text type="secondary">{state==='unlocked'?'已解锁':state==='pending'?'等待恢复材料验证':'已锁定'}</Typography.Text></Space>} extra={<Space><Button size="small" disabled={flow.loading} onClick={flow.refresh}>刷新状态</Button><Button onClick={()=>vaultSession.lock()}>锁定并清理</Button></Space>}>
+  return <Card className="vault-panel" title={<Space>个人保险库 <Typography.Text type="secondary">{state==='unlocked'?'已解锁':state==='pending'?'等待恢复材料验证':'已锁定'}</Typography.Text></Space>} extra={<Space><Button size="small" disabled={flow.loading||migrationBusy} onClick={flow.refresh}>刷新状态</Button><Button onClick={()=>vaultSession.lock()}>锁定并清理</Button></Space>}>
     {/* Explicit form owners prevent Chrome from pairing the header search with secrets. */}
     <form id={vaultForm} autoComplete="off" onSubmit={e=>e.preventDefault()} />
     <form id={reauthForm} autoComplete="off" onSubmit={e=>e.preventDefault()} />
     {flow.data && <VaultSteps status={flow.data} draft={!!pending} stale={!flow.ready}/>}
     {flow.error?<Alert type="error" showIcon title={flow.error} action={<Button onClick={flow.refresh}>重试状态</Button>}/>:flow.loading?<Typography.Paragraph role="status">正在读取准备状态…</Typography.Paragraph>:null}
     {flow.ready && flow.data && <>
-      {flowSteps(flow.data,!!pending).current==='migration' && <div id="vault-migration-step" tabIndex={-1} style={{marginBottom:12}}>
-        <Typography.Paragraph role="status">{migrationSummary(flow.data)} · 历史 {flow.data.counts.legacy_active} 条，已删除历史 {flow.data.counts.legacy_deleted} 条</Typography.Paragraph>
-        <Button onClick={flow.refresh}>刷新迁移状态</Button>
-        <Typography.Text type="secondary" style={{marginLeft:8}}>迁移入口尚未开放，请联系管理员准备</Typography.Text>
-      </div>}
+      {flowSteps(flow.data,!!pending).current==='migration' && <MigrationPanel flow={flow.data} unlocked={state==='unlocked'} onRefresh={flow.refresh} onRunningChange={setMigrationBusy} onUnlock={()=>{onCancelIntent();setMode('unlock');controls.current?.querySelector<HTMLInputElement>('input')?.focus();}}/>}
       {info?.initialized && (mode!=='unlock'||pending) && <Typography.Title level={5}>更新解锁凭据</Typography.Title>}
       {createRequested && <Space style={{marginBottom:8}}><Typography.Text>解锁后继续新增密钥</Typography.Text><Button onClick={()=>{onCancelIntent();vaultSession.lock();}}>取消新增</Button></Space>}
       <div ref={controls}>

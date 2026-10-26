@@ -14,6 +14,12 @@ export function vaultMessage(error:unknown) {
     return apiErrorMessage(error);
   }
   if(error instanceof VaultError) {
+    if(error.code==='MIGRATION_LIMIT')return '网页支持最多8 MiB、2000条记录。较大文件请联系管理员使用受支持的本地迁移工具。';
+    if(error.code==='MIGRATION_NETWORK')return '迁移请求结果暂时无法确认。请重新读取任务后重试，已提交的数据会从服务端核对。';
+    if(error.code==='MIGRATION_AUTH')return '账号身份确认失败，请检查账号登录密码；它不是保险库独立密码。';
+    if(error.code==='MIGRATION_CONFLICT')return '迁移状态已变化，请刷新任务后继续，不能覆盖其他会话的处理结果。';
+    if(error.code==='MIGRATION_RATE_LIMIT')return '等待次数已达上限，迁移已停止。请稍后刷新任务并继续。';
+
     if(error.code==='UNLOCK_FAILED') return '无法解锁，请检查密码或使用恢复材料';
     if(error.code==='INVALID_PASSWORD') return '请使用至少12个字符、最多1024字节的独立长口令。';
     if(error.code==='LOCKED') return '请先解锁保险库，再重新执行操作。';
