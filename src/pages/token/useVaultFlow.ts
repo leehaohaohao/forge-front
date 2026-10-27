@@ -1,4 +1,5 @@
 import {useCallback,useEffect,useRef,useState} from 'react';
+import {readTasks,type PreparationTask} from '@/services/vault-migration';
 import {readFlowStatus} from '@/services/vault-flow';
 import type {FlowStatus} from '@/lib/vault/flow';
 import {ApiError} from '@/lib/api-error';
@@ -7,7 +8,7 @@ import {VaultError} from '@/lib/vault/types';
 // No polling: explicit refresh, returning to a visible page, or a successful mutation.
 // Coalesce refreshes and honor Retry-After. Each effect lifetime owns its requests.
 export function useVaultFlow() {
-  const [view,setView]=useState<{data?:FlowStatus;loading:boolean;error?:string}>({loading:true});
+  const [view,setView]=useState<{data?:FlowStatus;task?:PreparationTask|null;loading:boolean;error?:string}>({loading:true});
   const load=useRef<()=>void>(()=>{});
   const refresh=useCallback(()=>load.current(),[]);
   useEffect(()=>{
@@ -18,7 +19,9 @@ export function useVaultFlow() {
       setView(v=>({...v,loading:true,error:undefined}));
       const start=async()=>{
         controller=new AbortController();const signal=controller.signal;
-        try{const data=await readFlowStatus(signal);if(active && id===serial && !signal.aborted)setView({data,loading:false});}
+        try{const data=await readFlowStatus(signal);let task:PreparationTask|null|undefined;
+          if(data.latest_batch?.state==='switched'){const tasks=await readTasks(data,signal);task=tasks.active??tasks.latest;data.completionConfirmed=!!task&&task.state==='completed'&&task.audit_complete===true&&!task.frozen&&task.batch?.batch_id===data.latest_batch.batch_id&&task.batch?.state==='switched'&&task.batch?.revision===data.latest_batch.revision&&!data.frozen&&!data.active_batch&&!data.migration_required&&data.counts.legacy_active===0&&data.counts.legacy_deleted===0&&data.audit.complete;}
+          if(active && id===serial && !signal.aborted)setView({data,task,loading:false});}
         catch(e){if(active && id===serial && !signal.aborted){
           next=Date.now()+10000;
           if(e instanceof ApiError && e.kind==='rate-limit')next=Math.max(next,Date.now()+(e.retryAfterSeconds??60)*1000);

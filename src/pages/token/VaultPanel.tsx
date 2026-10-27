@@ -5,6 +5,8 @@ import { readVault, reauthenticate, vaultTransport, type VaultStatus } from '@/s
 import { vaultMessage } from '@/lib/vault/messages';
 import { VaultError, type RecoveryMaterial } from '@/lib/vault/types';
 import { ApiError } from '@/lib/api-error';
+import BackupPanel from './BackupPanel';
+import MigrationResult from './MigrationResult';
 import MigrationPanel from './MigrationPanel';
 import VaultSteps from './VaultSteps';
 import type {useVaultFlow} from './useVaultFlow';
@@ -84,6 +86,7 @@ export default function VaultPanel({flow,createRequested,onCancelIntent,focusReq
     {flow.error?<Alert type="error" showIcon title={flow.error} action={<Button onClick={flow.refresh}>重试状态</Button>}/>:flow.loading?<Typography.Paragraph role="status">正在读取准备状态…</Typography.Paragraph>:null}
     {flow.ready && flow.data && <>
       {flowSteps(flow.data,!!pending).current==='migration' && <MigrationPanel flow={flow.data} unlocked={state==='unlocked'} onRefresh={flow.refresh} onRunningChange={setMigrationBusy} onUnlock={()=>{onCancelIntent();setMode('unlock');controls.current?.querySelector<HTMLInputElement>('input')?.focus();}}/>}
+      {flow.task&&<MigrationResult task={flow.task} flow={flow.data}/>}
       {info?.initialized && (mode!=='unlock'||pending) && <Typography.Title level={5}>更新解锁凭据</Typography.Title>}
       {createRequested && <Space style={{marginBottom:8}}><Typography.Text>解锁后继续新增密钥</Typography.Text><Button onClick={()=>{onCancelIntent();vaultSession.lock();}}>取消新增</Button></Space>}
       <div ref={controls}>
@@ -122,6 +125,7 @@ export default function VaultPanel({flow,createRequested,onCancelIntent,focusReq
       {info && info.initialized!==flow.data.initialized && <Button onClick={()=>{flow.refresh();void run(async op=>{const v=await readVault(op.signal);op.guard();setInfo(v);});}}>同步保险库状态</Button>}
       {!flow.data.operations.update_credentials.allowed && info?.initialized && <Typography.Paragraph type="secondary">{capabilityMessage(flow.data.operations.update_credentials)}</Typography.Paragraph>}
       </div>
+      {flow.data.initialized&&!busy&&<BackupPanel flow={flow.data}/>}
     </>}
   </Card>;
 }

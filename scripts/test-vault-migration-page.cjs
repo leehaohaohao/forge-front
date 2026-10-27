@@ -69,6 +69,8 @@ const now='2026-10-26T00:00:00Z';
  const file=(records=sourceRows)=>({name:'fixture.jsonl',mimeType:'application/json',buffer:Buffer.from(JSON.stringify({format:'forge-migration-source-v1',batch:{...batch,state:'frozen',revision:'1',staged_count:0,verified_count:0}})+'\n'+records.map(r=>JSON.stringify(r)).join('\n')+'\n')});
  const start=async chosen=>{await page.getByLabel('选择本地迁移源文件',{exact:true}).setInputFiles(chosen||file());await page.getByLabel('迁移账号登录密码',{exact:true}).fill('ACCOUNT-FIXTURE');await page.getByRole('checkbox').check();await btn('开始本地校验').click();};
  try{
+  if(process.env.EXPECT_MIGRATION_DISABLED){mode='none';task=null;await load();await page.getByText('迁移执行入口尚未开放，请联系管理员确认部署与验收。',{exact:true}).waitFor();assert.equal(await btn('申请迁移准备').count(),0);reset();await load();await unlock();assert.equal(await page.getByLabel('选择本地迁移源文件',{exact:true}).count(),0);assert.equal(writes,0);console.log('PASS disabled migration gate: read-only state, no preparation/local writes');return;}
+
   mode='none';task=null;requestLost=true;await load();await btn('申请迁移准备').click();await btn('OK').click();await page.getByText(/网络连接失败/).waitFor();await btn('OK').waitFor({state:'hidden'});await btn('申请迁移准备').click();await btn('OK').click();assert.equal(taskPosts[0],taskPosts[1]);await page.getByText(/等待管理员领取/).first().waitFor();assert.equal(batch.state,'exported');await btn('取消申请').click();await btn('OK').click();await page.getByText(/上次准备已取消/).waitFor();
   reset();await load();await btn('解锁后继续迁移').click();await unlock();
   const bad=structuredClone(sourceRows);bad[0].source_revision='2';bad[0].metadata.revision='2';await start(file(bad));await page.getByText(/文件或服务端暂存包校验失败/).waitFor();assert.equal(writes,0);

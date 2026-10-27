@@ -9,8 +9,8 @@ import {SOURCE_LIMIT} from '@/lib/vault/migration-source';
 import {VaultError} from '@/lib/vault/types';
 import type {MigrationProgress} from '@/lib/vault/migration-protocol';
 import {readTasks,requestPreparation,cancelPreparation,migrationHost,type PreparationTask,type MigrationCredentials} from '@/services/vault-migration';
-const taskLabels:Record<string,string>={requested:'等待管理员领取',preparing:'管理员准备中',awaiting_source:'等待管理员交付文件',ready_for_local:'请选择本地源文件',awaiting_cutover:'等待管理员最终切换',failed:'准备失败，请联系负责人',canceled:'上次准备已取消',completed:'请刷新准备状态确认核验结果'};
-const failureLabels:Record<string,string>={source_invalid:'源文件不符合要求',backup_required:'需要确认可恢复的备份',delivery_failed:'文件交付失败',preparation_failed:'准备未完成',export_failed:'文件导出失败'};
+const taskLabels:Record<string,string>={requested:'等待管理员领取',preparing:'管理员准备中',awaiting_source:'等待管理员交付文件',ready_for_local:'请选择本地源文件',awaiting_cutover:'等待管理员最终切换',failed:'迁移处理失败，请联系负责人',canceled:'上次准备已取消',completed:'切换与核验已通过，请刷新准备状态确认'};
+const failureLabels:Record<string,string>={source_invalid:'源文件不符合要求',backup_required:'需要确认可恢复的备份',delivery_failed:'文件交付失败',preparation_failed:'准备未完成',export_failed:'文件导出失败',cutover_failed:'切换未完成，请联系负责人重试',audit_failed:'切换后核验失败，请联系负责人处理'};
 export default function MigrationPanel({flow,unlocked,onUnlock,onRefresh,onRunningChange}:{flow:FlowStatus;unlocked:boolean;onUnlock:()=>void;onRefresh:()=>void;onRunningChange:(running:boolean)=>void}) {
   const [task,setTask]=useState<PreparationTask|null>(),[busy,setBusy]=useState(false),[error,setError]=useState(''),[loaded,setLoaded]=useState(false);
   const [file,setFile]=useState<File>(),[password,setPassword]=useState(''),[confirmed,setConfirmed]=useState(false);
@@ -59,10 +59,12 @@ export default function MigrationPanel({flow,unlocked,onUnlock,onRefresh,onRunni
     }catch(e){if(scope.active&&!op.signal.aborted)setError(e instanceof VaultError&&e.code==='INVALID_FORMAT'?'文件或服务端暂存包校验失败。请核对文件归属、完整性和版本；不会提交失败记录的验证回执。':vaultMessage(e));}
     finally{scope.credentials.password='';scope.credentials.authorization='';scope.running=false;scope.busy=false;op.done();if(scope.active){setBusy(false);setRunning(false);onRunningChange(false);}}
   }
-  const ready=loaded&&task?.state==='ready_for_local'&&task.frozen&&!!task.batch;
-  const canRequest=loaded&&(!task||task.state==='canceled')&&flow.operations.request_migration.allowed;
+  const enabled=import.meta.env.VITE_VAULT_MIGRATION_ENABLED==='true';
+  const ready=enabled&&loaded&&task?.state==='ready_for_local'&&task.frozen&&!!task.batch;
+  const canRequest=enabled&&loaded&&(!task||task.state==='canceled')&&flow.operations.request_migration.allowed;
   return <div id="vault-migration-step" tabIndex={-1} style={{marginBottom:12}}>
     <Typography.Paragraph role="status">{task?taskLabels[task.state]:migrationSummary(flow)} · 历史 {flow.counts.legacy_active} 条，已删除历史 {flow.counts.legacy_deleted} 条{task?.operator_id?` · 负责人 ${task.operator_id}`:''}</Typography.Paragraph>
+    {!enabled&&<Typography.Paragraph type="secondary">迁移执行入口尚未开放，请联系管理员确认部署与验收。</Typography.Paragraph>}
     {task?.failure_code&&<Typography.Paragraph type="danger">{failureLabels[task.failure_code]}</Typography.Paragraph>}
     {error&&<Alert type="error" showIcon title={error}/>}
     {waiting>0&&<Typography.Paragraph role="status">限流或重试等待 {waiting} 秒，已提交进度保留</Typography.Paragraph>}

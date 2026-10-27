@@ -3,6 +3,7 @@ export const operationNames=['initialize_vault','create_token','replace_secret',
 export type Capability={allowed:boolean;reason:string|null};
 export type Batch={batch_id:string;user_id:string;vault_id:string;state:'frozen'|'exported'|'staged'|'verified'|'switched'|'aborted';revision:string;record_count:number;staged_count:number;verified_count:number;created_at:string;updated_at:string};
 export interface FlowStatus {
+  completionConfirmed?:boolean;
   user_id:string; initialized:boolean;
   vault:null|{format_version:1;vault_id:string;revision:string;vault_key_version:number;credential_version:number};
   counts:{legacy_active:number;legacy_deleted:number;encrypted:number};
@@ -37,7 +38,7 @@ export type FlowStep='create'|'recovery'|'migration'|'use';
 export function flowSteps(s:FlowStatus,draft:boolean) {
   const hasMigration=s.has_migration_history || s.counts.legacy_active>0 || s.counts.legacy_deleted>0 || !!s.active_batch || s.migration_required;
   const steps:FlowStep[]=hasMigration?['create','recovery','migration','use']:['create','recovery','use'];
-  const migrated=s.latest_batch?.state==='switched' && s.latest_batch.vault_id===s.vault?.vault_id && s.audit.complete && s.audit.state==='complete';
+  const migrated=s.completionConfirmed!==false && s.latest_batch?.state==='switched' && s.latest_batch.vault_id===s.vault?.vault_id && s.audit.complete && s.audit.state==='complete';
   const needsMigration=s.migration_required || !!s.active_batch || s.frozen || s.counts.legacy_active>0 || s.counts.legacy_deleted>0 || (s.latest_batch?.state==='switched' && !migrated);
   const current:FlowStep=!s.initialized?(draft?'recovery':'create'):needsMigration?'migration':'use';
   return {steps,current};

@@ -15,7 +15,7 @@ const base=process.env.VAULT_PAGE_URL||'http://localhost:4180';
   const send=(data,http=200,code=0)=>route.fulfill({status:http,headers:{'Retry-After':'20'},contentType:'application/json',body:JSON.stringify({code,data})});
   if(route.request().method()!=='GET')writes++;
   if(path==='/forge/vault/migration-status'){reads++;const body=structuredClone(status),failed=failure;if(hold)await new Promise(r=>gate=r);return send(failed?null:body,failed||200,failed);}
-  if(path==='/forge/vault/migration-requests')return send({active:null,latest:null});
+  if(path==='/forge/vault/migration-requests')return send({active:null,latest:status.latest_batch?.state==='switched'?require('./vault-completion-fixture.cjs').completedTask(status):null});
   if(path==='/forge/vault')return send({initialized:status.initialized,user_id:'7',vault:status.initialized?{...config,user_id:'7',revision:'4',dek_wrap_count:1,dek_wrap_warn_at:900000,dek_wrap_limit:1000000}:null});
   if(path==='/forge/token')return send({list:[{id:'9',user_id:'7',name:'legacy-fixture',provider:'fixture',revision:'1',encryption_state:'legacy_pending',has_secret:true,expires_at:null}],total:1,page:1,page_size:10});
   if(path==='/forge/dashboard/stats')return send({token_count:0,workspace_count:0,link_count:0});

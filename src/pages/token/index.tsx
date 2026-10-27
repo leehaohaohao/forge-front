@@ -39,6 +39,8 @@ export default function TokenPage() {
       if(flow.data?.operations.create_token.allowed)edit(null);
     }
   },[createIntent,state,flow.ready,flow.data]);
+  const completionKey=flow.ready&&flow.data?.latest_batch?.state==='switched'?`${flow.data.latest_batch.batch_id}:${flow.data.latest_batch.revision}:${flow.data.audit.state}:${flow.data.completionConfirmed}`:'';
+  useEffect(()=>{if(completionKey){clearDisplay();refresh().catch(e=>message.error(vaultMessage(e)));}},[completionKey]);
   function requestCreate() {
     if(!flow.ready)return;
     if(!flow.data?.initialized){setCreateIntent(true);locateVault();return;}

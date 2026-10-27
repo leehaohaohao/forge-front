@@ -8,6 +8,7 @@ import { useSettingsStore } from '@/stores/settings';
 import { useQuickLinkStore } from '@/stores/quickLinks';
 import { useQuickLinkShortcut } from '@/hooks/useQuickLinkShortcut';
 import QuickLinkPanel from '@/components/quick-link/QuickLinkPanel';
+import RecoveryCheck from './pages/token/RecoveryCheck';
 import TokenPage from './pages/token';
 import QuickLinkPage from './pages/quick-link';
 import SettingsPage from './pages/settings';
@@ -183,6 +184,7 @@ export default function App() {
       <AntApp>
         <BrowserRouter basename="/app">
           <Routes>
+            <Route path="/recovery-check" element={<RecoveryCheck />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/*" element={<AppLayout />} />
           </Routes>

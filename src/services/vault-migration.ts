@@ -9,19 +9,31 @@ export type TaskState='requested'|'preparing'|'awaiting_source'|'ready_for_local
 export interface PreparationTask {
   task_id:string;user_id:string;vault_id:string;state:TaskState;revision:string;batch:ReturnType<typeof validateBatch>|null;
   operator_id:string|null;failure_code:string|null;next_action:string;frozen:boolean;can_cancel:boolean;
+  switched_at?:string|null;audit_complete?:boolean;audited_at?:string|null;completed_at?:string|null;backup_id?:string|null;backup_state?:'pending'|'failed'|'exported';backup_exported_at?:string|null;recovery_state?:'pending'|'failed'|'verified';recovery_checked_at?:string|null;files_disposed_at?:string|null;
   source_exported_at:string|null;delivered_at:string|null;created_at:string;updated_at:string;
 }
 export function parseTask(input:unknown,flow:FlowStatus):PreparationTask {
-  const d=object(input,['task_id','user_id','vault_id','state','revision','batch','operator_id','failure_code','next_action','frozen','can_cancel','source_exported_at','delivered_at','created_at','updated_at']);
+  const completion=['switched_at','audit_complete','audited_at','completed_at','backup_id','backup_state','backup_exported_at','recovery_state','recovery_checked_at','files_disposed_at'];
+  const extended=!!input&&typeof input==='object'&&completion.some(k=>k in input);
+  const d=object(input,['task_id','user_id','vault_id','state','revision','batch','operator_id','failure_code','next_action','frozen','can_cancel','source_exported_at','delivered_at','created_at','updated_at',...(extended?completion:[])]);
   uuid(d.task_id);uuid(d.vault_id);decimal(d.user_id);decimal(d.revision);if(d.operator_id!==null)decimal(d.operator_id);
   requireThat(d.user_id===flow.user_id&&d.vault_id===flow.vault?.vault_id);
   requireThat(['requested','preparing','awaiting_source','ready_for_local','awaiting_cutover','failed','canceled','completed'].includes(String(d.state)));
-  requireThat(['wait_for_operator','operator_prepare','operator_deliver_source','select_local_source','operator_verify_cutover','operator_retry','request_again','none'].includes(String(d.next_action)));
-  requireThat(d.failure_code===null||['source_invalid','backup_required','delivery_failed','preparation_failed','export_failed'].includes(String(d.failure_code)));
+  requireThat(['wait_for_operator','operator_prepare','operator_deliver_source','select_local_source','operator_verify_cutover','operator_retry','request_again','none','operator_backup','operator_verify_recovery','operator_dispose_files','use_vault'].includes(String(d.next_action)));
+  requireThat(d.failure_code===null||['source_invalid','backup_required','delivery_failed','preparation_failed','export_failed','cutover_failed','audit_failed'].includes(String(d.failure_code)));
   for(const k of ['frozen','can_cancel'])requireThat(typeof d[k]==='boolean');
   for(const k of ['source_exported_at','delivered_at','created_at','updated_at'])requireThat(d[k]===null||typeof d[k]==='string'&&Number.isFinite(Date.parse(d[k] as string)));
   if(d.batch!==null){const b=validateBatch(d.batch);requireThat(b.user_id===d.user_id&&b.vault_id===d.vault_id);}
   requireThat(!d.can_cancel||(d.state==='requested'&&d.batch===null&&!d.frozen));
+  if(extended){
+    requireThat(typeof d.audit_complete==='boolean');
+    requireThat(['pending','failed','exported'].includes(String(d.backup_state))&&['pending','failed','verified'].includes(String(d.recovery_state)));
+    if(d.backup_id!==null)uuid(d.backup_id);
+    for(const k of ['switched_at','audited_at','completed_at','backup_exported_at','recovery_checked_at','files_disposed_at'])requireThat(d[k]===null||typeof d[k]==='string'&&Number.isFinite(Date.parse(d[k] as string)));
+    if(d.backup_state==='exported')requireThat(d.backup_id!==null&&d.backup_exported_at!==null);
+    if(d.recovery_state==='verified')requireThat(d.backup_state==='exported'&&d.recovery_checked_at!==null);
+  }
+  if(d.state==='completed')requireThat(extended&&d.failure_code===null&&d.audit_complete===true&&!d.frozen&&d.batch!==null&&(d.batch as any).state==='switched'&&d.switched_at!==null&&d.completed_at!==null);
   if(d.state==='ready_for_local')requireThat(d.frozen&&d.batch!==null&&d.delivered_at!==null&&d.source_exported_at!==null);return input as PreparationTask;
 }
 const backoff=new Map<string,number>();
