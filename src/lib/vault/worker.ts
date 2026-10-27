@@ -1,3 +1,6 @@
+import {readSourceFile} from './migration-source';
+import {migrate,RateLimitError,type MigrationJournal} from './migration-core';
+import type {MigrationRequest,MigrationReply,MigrationProgress} from './migration-protocol';
 import type { VaultCommand, PreparedVault, VaultConfig } from './types';
 import { VaultError } from './types';
 import { decimal, requireThat, validateVault, validateRecovery, validateContext } from './format';
@@ -7,6 +10,15 @@ let vk: CryptoKey | undefined;
 let identity: string | undefined;
 let current: VaultConfig | undefined;
 let pending: { vault: VaultConfig; digest: Uint8Array<ArrayBuffer>; confirmed: boolean } | undefined;
+let bridgeSerial=0;
+const bridgeWaiters=new Map<number,(reply:MigrationReply)=>void>();
+const bridge=(request:MigrationRequest)=>new Promise<any>((resolve,reject)=>{
+  const id=++bridgeSerial;bridgeWaiters.set(id,reply=>{if(reply.ok)resolve(reply.value);else reject(reply.retryAfterMs!==undefined?new RateLimitError(reply.retryAfterMs):new VaultError(reply.code));});
+  self.postMessage({kind:'migration-request',id,request});
+});
+let journal:MigrationJournal={},journalBatch='';
+let progress:MigrationProgress={staged:0,verified:0,total:0};
+const report=(p:MigrationProgress)=>{progress=p;self.postMessage({kind:'migration-progress',progress:p});};
 const digest = async (bytes: Uint8Array<ArrayBuffer>) => new Uint8Array(await crypto.subtle.digest('SHA-256',bytes));
 async function adopt(user: string, vault: VaultConfig, raw: Uint8Array<ArrayBuffer>) {
   const key = await importAes(raw);
@@ -90,6 +102,22 @@ async function execute(command: VaultCommand | {action:'activatePrepared'}) {
       if (!pending?.confirmed) throw new VaultError('RECOVERY_UNVERIFIED');
       pending.digest.fill(0); pending = undefined;
       return true;
+    case 'migrate': {
+      if(!vk||!current||!identity)throw new VaultError('LOCKED');
+      if(pending)throw new VaultError('RECOVERY_UNVERIFIED');
+      const src=await readSourceFile(command.file);
+      requireThat(src.records.length>0&&src.batch.batch_id===command.batchId&&src.batch.user_id===identity&&src.batch.vault_id===current.vault_id);
+      if(journalBatch!==command.batchId){journal={};journalBatch=command.batchId;}
+      report({staged:0,verified:0,total:src.records.length});
+      try {
+        return await migrate(src,{...current,user_id:identity},vk,
+          (path:string,body?:unknown)=>bridge({kind:'api',path,body}),
+          async()=>{await bridge({kind:'reauth'});return 'host-authorized';},
+          async ms=>{report({...progress,waitingUntil:Date.now()+ms});await new Promise(r=>setTimeout(r,ms));report({...progress,waitingUntil:undefined});},
+          journal,(staged,verified,total)=>report({staged,verified,total}));
+      } catch(error){if(error instanceof RateLimitError)throw new VaultError('MIGRATION_RATE_LIMIT');throw error;}
+      finally{for(const r of src.records)r.legacy_value='';src.records.length=0;}
+    }
     case 'encrypt':
     case 'decrypt': {
       if (!vk || !current || !identity) throw new VaultError('LOCKED');
@@ -105,7 +133,8 @@ async function execute(command: VaultCommand | {action:'activatePrepared'}) {
 }
 // Serialize KDF and key operations. Locking terminates this whole Worker (including WASM memory).
 let chain = Promise.resolve();
-self.onmessage = (event: MessageEvent<{id:number; command:VaultCommand}>) => {
+self.onmessage = (event: MessageEvent<{id:number; command:VaultCommand; migrationReply?:number;reply?:MigrationReply}>) => {
+  if(event.data.migrationReply!==undefined){const resolve=bridgeWaiters.get(event.data.migrationReply);bridgeWaiters.delete(event.data.migrationReply);if(resolve&&event.data.reply)resolve(event.data.reply);return;}
   const {id,command} = event.data;
   chain = chain.then(async () => {
     try { self.postMessage({id,ok:true,value:await execute(command)}); }

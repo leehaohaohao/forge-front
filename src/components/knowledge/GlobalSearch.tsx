@@ -68,7 +68,7 @@ export default function GlobalSearch() {
   }, []);
 
   return (
-    <form role="search" aria-label="全局搜索" autoComplete="off" onSubmit={e=>e.preventDefault()} ref={wrapperRef} style={{ position: 'relative', flex: 1, display: 'flex', justifyContent: 'center' }}>
+    <form role="search" aria-label="全局搜索" autoComplete="off" onSubmit={e=>e.preventDefault()} ref={wrapperRef} style={{ position: 'relative', flex: 1, minWidth:0, marginInline:8, display: 'flex', justifyContent: 'center' }}>
       <Input
         type="search"
         name="knowledge-query"

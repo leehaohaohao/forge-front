@@ -10,6 +10,7 @@ export class ApiError extends Error {
     public readonly httpStatus?: number,
     public readonly businessCode?: number,
     public readonly requestId?: string,
+    public readonly retryAfterSeconds?: number,
   ) { super(kind); }
 }
 
@@ -40,7 +41,9 @@ export function normalizeApiError(error: unknown, response?: AxiosResponse): Api
     else if (path === '/auth/register' && data?.message === '该手机号已注册！') kind = 'registered';
     else kind = 'parameters';
   } else if (!res && transport) kind = 'network';
-  return new ApiError(kind,status,code,requestId);
+  const retry = res?.headers?.['retry-after'];
+  const seconds=typeof retry==='string' && /^\d+$/.test(retry)?Number(retry):typeof retry==='string'?Math.ceil((Date.parse(retry)-Date.now())/1000):undefined;
+  return new ApiError(kind,status,code,requestId,seconds!==undefined && Number.isFinite(seconds) && seconds>=0?seconds:undefined);
 }
 
 const safeMessages: Record<ApiErrorKind,string> = {

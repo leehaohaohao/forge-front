@@ -11,6 +11,7 @@ const assert=require('node:assert/strict');
    const req=route.request(),path=new URL(req.url()).pathname;
    const send=(data,status=200,code=0)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify({code,data})});
    if(req.method()!=='GET')writes++;
+   if(path==='/forge/vault/migration-status')return send(require('./vault-flow-fixture.cjs').statusFor(null,'7'));
    if(path==='/forge/vault'){
     reads++;const shouldFail=fail;
     if(gate)await gate.promise;else await new Promise(r=>setTimeout(r,250));

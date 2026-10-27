@@ -21,6 +21,7 @@ for(const channel of (process.env.VAULT_BROWSERS||'chromium,msedge').split(','))
    requests.push({path,method,body});
    const respond=(data,status=200,code=0)=>route.fulfill({status,contentType:'application/json',headers:{'Cache-Control':'no-store'},body:JSON.stringify({code,message:code?'request failed':'success',data})});
    if(unauthorized&&path==='/forge/token'){unauthorized=false;return respond(null,process.env.VAULT_AUTH_EXPIRY==='legacy'?200:401,401);}
+   if(path==='/forge/vault/migration-status')return respond(require('./vault-flow-fixture.cjs').statusFor(vault,user));
    if(path==='/forge/vault'&&method==='GET')return respond({initialized:!!vault,user_id:user,vault});
    if(path==='/forge/vault'&&method==='POST'){
      assert.equal(vault,null);assert(!('user_id' in body));vault={...body,user_id:user,revision:'1',created_at:new Date().toISOString(),updated_at:new Date().toISOString(),dek_wrap_count:0,dek_wrap_warn_at:900000,dek_wrap_limit:1000000};return respond(vault);
@@ -66,7 +67,7 @@ for(const channel of (process.env.VAULT_BROWSERS||'chromium,msedge').split(','))
   assert.equal(await passphrase.inputValue(),'Fictional enter-key check');
   await passphrase.fill('');
   const discardLockedDraft=async(action,savedFile=false)=>{
-    await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));Object.defineProperty(document,'hidden',{configurable:true,value:false});});
+    await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));Object.defineProperty(document,'hidden',{configurable:true,value:false});document.dispatchEvent(new Event('visibilitychange'));});
     const field=page.getByLabel('草稿解锁密码',{exact:true});
     await page.getByText('因切换标签页或隐藏页面，保险库已自动锁定。',{exact:false}).waitFor();
     if(savedFile){await field.waitFor();assert.equal(await field.inputValue(),'');}
@@ -105,7 +106,7 @@ for(const channel of (process.env.VAULT_BROWSERS||'chromium,msedge').split(','))
       else assert.equal(await page.getByText('等待恢复材料验证',{exact:true}).count(),1);
       await other.close();await page.bringToFront();await cdp.detach();
       if(!hidden)return;
-    } else await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));Object.defineProperty(document,'hidden',{configurable:true,value:false});});
+    } else await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));Object.defineProperty(document,'hidden',{configurable:true,value:false});document.dispatchEvent(new Event('visibilitychange'));});
     await page.getByLabel('草稿解锁密码',{exact:true}).waitFor();
     assert((await page.locator('input[type=password]').evaluateAll(xs=>xs.map(x=>x.value))).every(x=>x===''));
     await page.getByLabel('草稿解锁密码',{exact:true}).fill(pass);
@@ -139,7 +140,7 @@ for(const channel of (process.env.VAULT_BROWSERS||'chromium,msedge').split(','))
   await btn('新增密钥').click();await page.getByLabel('业务密钥',{exact:true}).fill('discard-on-hide');
   await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));});
   await page.getByText('已锁定',{exact:true}).waitFor();await page.getByLabel('业务密钥',{exact:true}).waitFor({state:'hidden'});
-  await page.evaluate(()=>Object.defineProperty(document,'hidden',{configurable:true,value:false}));
+  await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,value:false});document.dispatchEvent(new Event('visibilitychange'));});
   await page.getByLabel('独立解锁密码',{exact:true}).fill('wrong-password');await btn('解锁').click();await page.getByText('无法解锁，请检查密码或使用恢复材料',{exact:true}).waitFor();
   await page.getByLabel('独立解锁密码',{exact:true}).fill(password);await btn('解锁').click();await page.getByText('已解锁',{exact:true}).waitFor();
   await btn('查看').click();await page.getByText(replacement,{exact:true}).waitFor();
