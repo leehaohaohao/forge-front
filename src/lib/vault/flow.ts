@@ -1,8 +1,10 @@
+import {parseSelfService,type SelfService} from './self-service';
 import { decimal, uuid, version, object, requireThat } from './format';
 export const operationNames=['initialize_vault','create_token','replace_secret','edit_metadata','delete_token','update_credentials','read_encrypted','export_encrypted','request_migration'] as const;
 export type Capability={allowed:boolean;reason:string|null};
 export type Batch={batch_id:string;user_id:string;vault_id:string;state:'frozen'|'exported'|'staged'|'verified'|'switched'|'aborted';revision:string;record_count:number;staged_count:number;verified_count:number;created_at:string;updated_at:string};
 export interface FlowStatus {
+  self_service?:SelfService;
   completionConfirmed?:boolean;
   user_id:string; initialized:boolean;
   vault:null|{format_version:1;vault_id:string;revision:string;vault_key_version:number;credential_version:number};
@@ -15,7 +17,8 @@ export interface FlowStatus {
 const count=(v:unknown)=>requireThat(Number.isSafeInteger(v) && Number(v)>=0);
 const time=(v:unknown)=>requireThat(typeof v==='string' && Number.isFinite(Date.parse(v)));
 export function parseFlowStatus(input:unknown):FlowStatus {
-  const d=object(input,['user_id','initialized','vault','counts','has_migration_history','migration_required','frozen','encrypted_only','active_batch','latest_batch','audit','operations']);
+  const d=object(input,['user_id','initialized','vault','counts','has_migration_history','migration_required','frozen','encrypted_only','active_batch','latest_batch','audit','operations',...(input&&typeof input==='object'&&'self_service' in input?['self_service']:[])]);
+  if(d.self_service!==undefined)parseSelfService(d.self_service);
   decimal(d.user_id);
   for(const k of ['initialized','has_migration_history','migration_required','frozen','encrypted_only'])requireThat(typeof d[k]==='boolean');
   requireThat(d.initialized===(d.vault!==null));
