@@ -67,6 +67,7 @@ export class VaultSession {
       this.worker=new Worker(new URL('./worker.ts',import.meta.url),{type:'module'});
       const worker=this.worker;
       this.worker.onmessage=({data}) => {
+        if(this.worker!==worker)return;
         if(data.kind==='migration-progress'){this.migrationProgress?.(data.progress);return;}
         if(data.kind==='migration-request'){
           const host=this.migrationHost,epoch=this.generation;
@@ -78,7 +79,7 @@ export class VaultSession {
         this.waiters.delete(data.id);
         if (data.ok) waiter.resolve(data.value); else waiter.reject(new VaultError(data.code));
       };
-      this.worker.onerror=() => this.lock('UNSUPPORTED');
+      this.worker.onerror=() => {if(this.worker===worker)this.lock('UNSUPPORTED');};
     }
     this.touch();
     const id=++this.serial;
@@ -185,6 +186,18 @@ export class VaultSession {
     await this.call({action:'activatePrepared'}); guard();
     this.draft=undefined; this.status='unlocked'; this.notify();
     return result;
+  }
+  async selfRecipient() {
+    if(this.state!=='unlocked')throw new VaultError('LOCKED');
+    if(this.migrationHost)throw new VaultError('STALE');
+    return this.call<{publicKey:JsonWebKey;recipient:string}>({action:'selfRecipient'});
+  }
+  async selfMigrate(run:import('./self-migration').SelfRun,host:MigrationHost,progress:(p:MigrationProgress)=>void) {
+    if(this.state!=='unlocked')throw new VaultError('LOCKED');
+    if(this.migrationHost)throw new VaultError('STALE');
+    const epoch=this.generation;this.migrationHost=host;this.migrationProgress=progress;
+    try{return await this.call<{accepted:true;phase:string}>({action:'selfMigrate',run});}
+    finally{if(this.isCurrent(epoch)){this.migrationHost=undefined;this.migrationProgress=undefined;}}
   }
   async migrate(file:Blob,batchId:string,host:MigrationHost,progress:(p:MigrationProgress)=>void) {
     if(this.state!=='unlocked')throw new VaultError('LOCKED');
