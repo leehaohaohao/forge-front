@@ -16,7 +16,7 @@ const http:SelfTransport={async request(path,body,signal,headers){
  const r=body===undefined?await api.get<ApiResponse<unknown>>(path,{signal,headers}):await api.post<ApiResponse<unknown>>(path,body,{signal,headers});
  return {data:r.data.data,date:String(r.headers.date??'')};
 }};
-interface Grant {token:string;expires_at:string;delivery_epoch:string;recipient:string;scope:'migration'}
+interface Grant {token:string;expires_at:string;delivery_epoch:string;recipient:string;scope:'migration'|'cancel_only'}
 // This controller has no production UI entry until backend3/frontend3. All secrets
 // remain in memory; closing it aborts HTTP and terminates an active Worker run.
 export class SelfMigrationClient {
@@ -40,7 +40,7 @@ export class SelfMigrationClient {
   requireThat(t?.protocol==='self-service-v1'&&t.vault_id===this.vault.vault_id);uuid(t.task_id);decimal(t.revision);
   if(this.taskId)requireThat(t.task_id===this.taskId);return t;
  }
- async establish(account:{password:string},options:{resume?:{taskId:string;revision:string;replaceExisting:boolean};resumeExisting?:boolean}){
+ async establish(account:{password:string},options:{resume?:{taskId:string;revision:string;replaceExisting:boolean};resumeExisting?:boolean;cancelOnly?:boolean}){
   this.guard();if(this.busy)throw new VaultError('STALE');this.busy=true;let proof='';
   try{
    this.grant=undefined;this.pair=await this.session.selfRecipient();this.guard();
@@ -48,17 +48,21 @@ export class SelfMigrationClient {
    try{proof=(await this.request('/auth/reauth',{account_password:account.password,purpose:'vault_migration'})).reauth_token;}finally{account.password='';}
    requireThat(typeof proof==='string'&&proof.length>0);
    let path=root,body:any={request_id:crypto.randomUUID(),expected_vault_revision:this.vault.revision,recipient_public_key:this.pair.publicKey,impact_ack:{include_deleted:true,pause_writes:true,keep_page_open:true},resume_existing:options.resumeExisting===true};
-   if(options.resume){uuid(options.resume.taskId);decimal(options.resume.revision);this.taskId=options.resume.taskId;path+='/'+this.taskId+'/session';body={request_id:crypto.randomUUID(),expected_task_revision:options.resume.revision,recipient_public_key:this.pair.publicKey,replace_existing:options.resume.replaceExisting,cancel_only:false};}
+   if(options.resume){uuid(options.resume.taskId);decimal(options.resume.revision);this.taskId=options.resume.taskId;path+='/'+this.taskId+'/session';body={request_id:crypto.randomUUID(),expected_task_revision:options.resume.revision,recipient_public_key:this.pair.publicKey,replace_existing:options.resume.replaceExisting,cancel_only:options.cancelOnly===true};}
    // Never replay a one-time account proof after an uncertain response. Caller
    // queries current state and explicitly establishes a replacement session.
    const result=await this.request(path,body,{'X-Vault-Reauth':proof});object(result,['task','authorization']);const task=this.task(result.task);this.taskId=task.task_id;
    if(result.authorization===null)throw new VaultError('SELF_AUTH');
    const g=object(result.authorization,['token','expires_at','delivery_epoch','recipient','scope']);decimal(g.delivery_epoch);
    const expiry=Date.parse(String(g.expires_at))/1000;
-   requireThat(typeof g.token==='string'&&/^[A-Za-z0-9_-]{43}$/.test(g.token)&&g.scope==='migration'&&g.recipient===this.pair.recipient&&Number.isFinite(expiry)&&expiry>this.now()&&expiry<=this.now()+900);
+   requireThat(typeof g.token==='string'&&/^[A-Za-z0-9_-]{43}$/.test(g.token)&&g.scope===(options.cancelOnly?'cancel_only':'migration')&&g.recipient===this.pair.recipient&&Number.isFinite(expiry)&&expiry>this.now()&&expiry<=this.now()+900);
    requireThat(task.delivery?.epoch===g.delivery_epoch&&task.delivery?.recipient===g.recipient&&task.delivery?.expires_at===g.expires_at);
    this.grant=g as unknown as Grant;return task;
   }finally{proof='';account.password='';this.busy=false;}
+ }
+ async act(kind:'retry'|'cancel',task:any){
+  this.guard();requireThat(this.grant&&task.task_id===this.taskId);decimal(task.revision);
+  return this.task(await this.request(root+'/'+this.taskId+'/'+kind,{request_id:crypto.randomUUID(),expected_task_revision:task.revision},{'X-Vault-Migration-Authorization':this.grant!.token}));
  }
  async current(){return this.request(root);}
  async read(){requireThat(this.taskId);return this.task(await this.request(root+'/'+this.taskId));}
