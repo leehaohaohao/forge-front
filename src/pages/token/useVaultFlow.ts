@@ -1,3 +1,4 @@
+import {migrationCompletion} from '@/services/migration-completion';
 import api from '@/lib/api';
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {readTasks,type PreparationTask} from '@/services/vault-migration';
@@ -21,7 +22,10 @@ export function useVaultFlow() {
       const start=async()=>{
         controller=new AbortController();const signal=controller.signal;
         try{const data=await readFlowStatus(signal);let task:PreparationTask|null|undefined;let selfTask:any;
-          if(data.latest_batch?.state==='switched'&&data.self_service){const result=(await api.get('/vault/self-service-migrations',{signal})).data.data;const t=result.active??result.latest;selfTask=t;data.completionConfirmed=!!t&&t.vault_id===data.vault?.vault_id&&t.phase==='completed'&&t.batch?.batch_id===data.latest_batch.batch_id&&t.batch?.state==='switched'&&t.audit?.complete===true&&!t.completion_gate&&!t.frozen&&!data.frozen&&!data.active_batch&&!data.migration_required&&data.counts.legacy_active===0&&data.counts.legacy_deleted===0&&data.audit.complete;}else if(data.latest_batch?.state==='switched'){const tasks=await readTasks(data,signal);task=tasks.active??tasks.latest;data.completionConfirmed=!!task&&task.state==='completed'&&task.audit_complete===true&&!task.frozen&&task.batch?.batch_id===data.latest_batch.batch_id&&task.batch?.state==='switched'&&task.batch?.revision===data.latest_batch.revision&&!data.frozen&&!data.active_batch&&!data.migration_required&&data.counts.legacy_active===0&&data.counts.legacy_deleted===0&&data.audit.complete;}
+          if(data.latest_batch?.state==='switched'){
+            const completion=await migrationCompletion(data,async()=>(await api.get('/vault/self-service-migrations',{signal})).data.data,()=>readTasks(data,signal));
+            task=completion.task;selfTask=completion.selfTask;data.completionConfirmed=completion.complete;
+          }
           if(active && id===serial && !signal.aborted)setView({data,task,selfTask,loading:false});}
         catch(e){if(active && id===serial && !signal.aborted){
           next=Date.now()+10000;

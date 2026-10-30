@@ -1,0 +1,22 @@
+import {build} from 'esbuild';import {writeFile,unlink} from 'node:fs/promises';import assert from 'node:assert/strict';
+const b=await build({stdin:{contents:"export * from './src/services/migration-completion';export * from './src/lib/api-error';export * from './src/stores/auth';",resolveDir:process.cwd()},bundle:true,write:false,platform:'node',format:'esm',packages:'external',alias:{'@':process.cwd()+'/src'},plugins:[{name:'vault-worker-boundary',setup(b){b.onResolve({filter:/vault\/runtime$/},()=>({path:'runtime',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:'export const vaultSession={lock(){globalThis.locks=(globalThis.locks??0)+1}};'}));}}]});
+const file=new URL('../.pr8-review-test.mjs',import.meta.url);await writeFile(file,b.outputFiles[0].contents);
+try{globalThis.window=new EventTarget();const storage=new Map();globalThis.localStorage={getItem:k=>storage.get(k)??null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)};
+ const {migrationCompletion:check,ApiError,useAuthStore}=await import(file.href);
+ const flow={vault:{vault_id:'v'},latest_batch:{batch_id:'b',revision:'3'},self_service:{},frozen:false,active_batch:null,migration_required:false,counts:{legacy_active:0,legacy_deleted:0},audit:{complete:true}};
+ const old={vault_id:'v',state:'completed',audit_complete:true,frozen:false,batch:{batch_id:'b',state:'switched',revision:'3'}};let reads=0;const legacy=async()=>{reads++;return {active:null,latest:old};};
+ assert.equal((await check(flow,async()=>{throw new ApiError('conflict',409,40910);},legacy)).complete,true);
+ assert.equal((await check(flow,async()=>({active:null,latest:null}),legacy)).complete,true);
+ assert.equal((await check(flow,async()=>({latest:{vault_id:'v',batch:{batch_id:'other'}}}),legacy)).complete,true);
+ const current={vault_id:'v',phase:'completed',batch:{batch_id:'b',state:'switched'},audit:{complete:true},completion_gate:false,frozen:false};
+ assert.equal((await check(flow,async()=>({latest:current}),legacy)).complete,true);assert.equal(reads,3);
+ assert.equal((await check(flow,async()=>({latest:{...current,phase:'failed',completion_gate:true}}),legacy)).complete,false);assert.equal(reads,3);
+ await assert.rejects(()=>check(flow,async()=>{throw new ApiError('network');},legacy));assert.equal(reads,3);
+ let release,calls=0;globalThis.fetch=async(url,config)=>{calls++;assert.equal(url,'/forge/vault/self-service-session/revoke');assert.equal(config.headers.Authorization,'Bearer old');return new Promise(r=>release=r);};
+ storage.set('forge_token','old');storage.set('forge_user','{}');storage.set('forge_token_time','1');const pending=useAuthStore.getState().logout();assert.equal(storage.size,0);assert.equal(useAuthStore.getState().isLoggedIn,false);assert.equal(calls,1);
+ storage.set('forge_token','new');release({ok:false,status:401});await pending;assert.equal(storage.get('forge_token'),'new');
+ globalThis.fetch=async()=>{calls++;throw Error('offline');};await useAuthStore.getState().logout();assert.equal(storage.size,0);assert.equal(calls,2);
+ storage.set('forge_token','expired');window.dispatchEvent(new Event('forge-auth-invalid'));assert.equal(storage.size,0);assert.equal(calls,2);
+ globalThis.fetch=async()=>({ok:true,json:async()=>({code:0})});storage.set('forge_token','ok');await useAuthStore.getState().logout();assert.equal(storage.size,0);
+ console.log('PASS PR8: legacy 40910/empty/unrelated task fallback; authoritative self task and errors; real auth store immediate cleanup, old bearer, offline, late 401/new login, auth-invalid no revoke loop, success');
+}finally{await unlink(file);}
