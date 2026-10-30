@@ -29,3 +29,9 @@
 阶段比较先检查previous与当前任务均存在，再核对task_id和phase；空列表及首次快照不会访问空对象或触发终态刷新。独立pollError在成功读取后清除，操作错误仍单独保留，避免后台成功响应掩盖用户操作失败。
 
 扩展Chrome页面测试：active/latest均null，连续空列表轮询，空列表后出现新任务均无错误提示和额外刷新；模拟查询网络失败出现提示，恢复成功后清除。原取消历史、重挂、再次开始、90秒准备及429保留上下文场景仍通过。正式构建、test-pr8-review及34项核心回归通过。浏览器测试继续使用合成HTTP和client替身，不宣称完成真实后端联合验收。
+
+## PR #9：仅身份变化取消状态重试
+
+storage监听限定localStorage，且key为forge_token或clear事件（key=null）；读取当前token并与已观察值比较，无实际变化时不取消。无关工作区、sessionStorage不影响Retry-After等待。实际身份变化和认证失效显式清除旧视图/结束loading，取消控制器和计时器，不再保留自动继续承诺。
+
+验证：test-status-storage-browser.cjs在同一Chrome context的两个页面通过真实storage事件覆盖工作区变更、token替换/删除、localStorage.clear；额外验证sessionStorage事件忽略，以及旧完成响应在token变化后才返回也不得回写。等待120秒虚拟时间后无关变化自动完成，身份变化保持终止。测试使用真实useVaultFlow、模拟HTTP适配器；非真实限流联合验收。正式构建、test-status-retry.mjs、test-pr8-review.mjs通过。

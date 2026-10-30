@@ -43,10 +43,17 @@ export function useVaultFlow() {
       if(document.hidden){++serial;clearTimeout(timer);controller?.abort();setView(v=>({...v,loading:false,error:'页面已暂停，返回后重新读取状态'}));}
       else request();
     };
-    const invalidate=()=>{++serial;clearTimeout(timer);controller?.abort();};
-    window.addEventListener('forge-auth-invalid',invalidate);window.addEventListener('storage',invalidate);
+    let observedToken=localStorage.getItem('forge_token');
+    const invalidate=()=>{++serial;clearTimeout(timer);controller?.abort();if(active)setView({loading:false,error:'登录状态已变化，请重新登录或刷新页面。'});};
+    const storage=(event:StorageEvent)=>{
+      if(event.storageArea!==localStorage||(event.key!==null&&event.key!=='forge_token'))return;
+      const token=localStorage.getItem('forge_token');
+      if(token===observedToken)return;
+      observedToken=token;invalidate();
+    };
+    window.addEventListener('forge-auth-invalid',invalidate);window.addEventListener('storage',storage);
     load.current=request;request();document.addEventListener('visibilitychange',visibility);
-    return ()=>{active=false;++serial;clearTimeout(timer);controller?.abort();load.current=()=>{};document.removeEventListener('visibilitychange',visibility);window.removeEventListener('forge-auth-invalid',invalidate);window.removeEventListener('storage',invalidate);};
+    return ()=>{active=false;++serial;clearTimeout(timer);controller?.abort();load.current=()=>{};document.removeEventListener('visibilitychange',visibility);window.removeEventListener('forge-auth-invalid',invalidate);window.removeEventListener('storage',storage);};
   },[]);
   return {...view,refresh,ready:!!view.data&&!view.loading&&!view.error};
 }
