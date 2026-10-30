@@ -15,3 +15,11 @@
 显式退出捕获原Bearer发起POST /vault/self-service-session/revoke，并立即锁定及清理本地。独立fetch设置5秒超时、no-store及keepalive，迟到响应不经过全局401拦截器，不影响新登录；网络失败仍完成本地退出，不能保证离线时服务端撤销成功。普通锁定不撤销，鉴权失效事件只清本地，避免递归撤销。
 
 新增 scripts/test-pr8-review.mjs：完成查询40910/无任务/其他批次兼容，新任务权威及错误传播；真实认证store（隔离Worker边界）立即清理、原Bearer、网络失败、迟到401与新登录、失效事件和成功响应。构建、新测试和34项核心回归通过。未将这些定向合成测试声称为真实页面/后端/隔离库联合验收。后端blockers=null契约问题及完整联合验收仍需配套完成。
+
+## PR #8 第二轮：终态刷新与轮询预算
+
+仅在同一任务从已观察的非终态转入终态时刷新父级；首次读到历史canceled/completed不刷新，卸载重挂不会循环。已取消任务显示“一键迁移”，重新创建时使用resumeExisting而非续接已取消会话。
+
+后台列表查询在本地操作busy期间暂停；准备阶段仅保留详情查询，每15秒一次，为共享12次/分钟预算预留余量。准备读取遇到429按Retry-After等待，保留client和授权上下文，不自动要求再次输入密码。等待监听在结束后移除。
+
+验证：npm run build、test-pr8-review.mjs、34项test-self-migration.mjs通过。新增test-pr8-polling.cjs在Chrome运行真实SelfServiceMigration与模拟父组件卸载重挂，使用浏览器虚拟时钟覆盖历史取消任务60秒稳定停留、准备90秒含429仍运行且无列表并发、终态刷新后重挂稳定及再次开始。HTTP与SelfMigrationClient操作使用合成替身，保险库本地初始化为真实Worker；不是实际VaultPanel全链路或真实后端联合验收。
