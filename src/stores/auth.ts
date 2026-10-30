@@ -1,3 +1,4 @@
+import {revokeLogoutSession} from '@/services/logout-revocation';
 import { vaultSession } from '@/lib/vault/runtime';
 import { useTokenStore } from '@/stores/tokens';
 import { create } from 'zustand';
@@ -16,7 +17,7 @@ interface AuthState {
   authReady: boolean;
   login: (phone: string, password: string) => Promise<void>;
   register: (phone: string, password: string, username: string) => Promise<void>;
-  logout: () => void;
+  logout: (revoke?:boolean) => Promise<void>;
   initAuth: () => void;
 }
 
@@ -44,12 +45,15 @@ export const useAuthStore = create<AuthState>((set) => ({
     await registerApi(phone, password, username);
   },
 
-  logout: () => {
+  logout: async (revoke=true) => {
+    const token=localStorage.getItem(TOKEN_KEY);
+    const revocation=revoke&&token?revokeLogoutSession(token):Promise.resolve(true);
     vaultSession.lock(); useTokenStore.getState().clear();
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(TOKEN_TIME_KEY);
     localStorage.removeItem(USER_KEY);
     set({ token: null, user: null, isLoggedIn: false });
+    await revocation;
   },
 
   initAuth: () => {
@@ -84,4 +88,4 @@ export const useAuthStore = create<AuthState>((set) => ({
 
 // Avoid an api -> auth store -> vault -> api import cycle. The interceptor emits
 // this for both HTTP 401 and legacy HTTP 200/code 401 (excluding reauth 40101).
-window.addEventListener('forge-auth-invalid', () => useAuthStore.getState().logout());
+window.addEventListener('forge-auth-invalid', () => void useAuthStore.getState().logout(false));

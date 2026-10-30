@@ -1,3 +1,5 @@
+import {recipient,DeliveryReceiver} from './delivery';
+import {selfMigrate} from './self-migration';
 import {readSourceFile} from './migration-source';
 import {migrate,RateLimitError,type MigrationJournal} from './migration-core';
 import type {MigrationRequest,MigrationReply,MigrationProgress} from './migration-protocol';
@@ -6,6 +8,7 @@ import { VaultError } from './types';
 import { decimal, requireThat, validateVault, validateRecovery, validateContext } from './format';
 import { importAes, wrapVault, unwrapPassword, unwrapRecovery, encryptSecret, decryptSecret } from './crypto';
 
+let delivery:Awaited<ReturnType<typeof recipient>>|undefined;
 let vk: CryptoKey | undefined;
 let identity: string | undefined;
 let current: VaultConfig | undefined;
@@ -102,6 +105,22 @@ async function execute(command: VaultCommand | {action:'activatePrepared'}) {
       if (!pending?.confirmed) throw new VaultError('RECOVERY_UNVERIFIED');
       pending.digest.fill(0); pending = undefined;
       return true;
+    case 'selfRecipient': {
+      if(!vk||!current||!identity)throw new VaultError('LOCKED');
+      if(pending)throw new VaultError('RECOVERY_UNVERIFIED');
+      delivery=undefined;delivery=await recipient();
+      return {publicKey:delivery.publicKey,recipient:delivery.recipient};
+    }
+    case 'selfMigrate': {
+      if(!vk||!current||!identity)throw new VaultError('LOCKED');
+      if(pending)throw new VaultError('RECOVERY_UNVERIFIED');
+      const pair=delivery;delivery=undefined;
+      requireThat(pair&&command.run.recipient===pair.recipient);
+      try{return await selfMigrate(command.run,{...current,user_id:identity},vk,
+        new DeliveryReceiver(pair!.privateKey,pair!.recipient),
+        (path,body)=>bridge({kind:'api',path,body}),report);}
+      catch(error){if(error instanceof RateLimitError)throw new VaultError('MIGRATION_RATE_LIMIT');throw error;}
+    }
     case 'migrate': {
       if(!vk||!current||!identity)throw new VaultError('LOCKED');
       if(pending)throw new VaultError('RECOVERY_UNVERIFIED');

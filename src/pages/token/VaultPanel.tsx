@@ -86,6 +86,7 @@ export default function VaultPanel({flow,createRequested,onCancelIntent,focusReq
     {flow.error?<Alert type="error" showIcon title={flow.error} action={<Button onClick={flow.refresh}>重试状态</Button>}/>:flow.loading?<Typography.Paragraph role="status">正在读取准备状态…</Typography.Paragraph>:null}
     {flow.ready && flow.data && <>
       {flowSteps(flow.data,!!pending).current==='migration' && <MigrationPanel flow={flow.data} unlocked={state==='unlocked'} onRefresh={flow.refresh} onRunningChange={setMigrationBusy} onUnlock={()=>{onCancelIntent();setMode('unlock');controls.current?.querySelector<HTMLInputElement>('input')?.focus();}}/>}
+      {flow.selfTask&&<Typography.Paragraph role="status">{flow.data.completionConfirmed?'迁移完成，切换及审计已通过。':'切换完成状态仍在核验。'} 加密备份：{({pending:'准备中',running:'生成中',exported:'已生成',failed:'失败，系统将重试'} as Record<string,string>)[flow.selfTask.post_backup?.state]??'尚未确认'}。独立恢复验证需在备份入口单独完成。</Typography.Paragraph>}
       {flow.task&&<MigrationResult task={flow.task} flow={flow.data}/>}
       {info?.initialized && (mode!=='unlock'||pending) && <Typography.Title level={5}>更新解锁凭据</Typography.Title>}
       {createRequested && <Space style={{marginBottom:8}}><Typography.Text>解锁后继续新增密钥</Typography.Text><Button onClick={()=>{onCancelIntent();vaultSession.lock();}}>取消新增</Button></Space>}

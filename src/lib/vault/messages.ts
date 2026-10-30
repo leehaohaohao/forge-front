@@ -14,6 +14,9 @@ export function vaultMessage(error:unknown) {
     return apiErrorMessage(error);
   }
   if(error instanceof VaultError) {
+    if(error.code==='SELF_AUTH')return '迁移授权已到期或失效，请重新确认账号身份并继续迁移。';
+    if(error.code==='SELF_LEASE')return '迁移已由另一个页面接续，本页已停止。请刷新状态后选择是否继续。';
+    if(error.code==='SELF_UNAVAILABLE')return '自助迁移暂未开放，已提交的进度会保留。';
     if(error.code==='MIGRATION_LIMIT')return '网页支持最多8 MiB、2000条记录。较大文件请联系管理员使用受支持的本地迁移工具。';
     if(error.code==='MIGRATION_NETWORK')return '迁移请求结果暂时无法确认。请重新读取任务后重试，已提交的数据会从服务端核对。';
     if(error.code==='MIGRATION_AUTH')return '账号身份确认失败，请检查账号登录密码；它不是保险库独立密码。';
