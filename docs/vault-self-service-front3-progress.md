@@ -23,3 +23,9 @@
 后台列表查询在本地操作busy期间暂停；准备阶段仅保留详情查询，每15秒一次，为共享12次/分钟预算预留余量。准备读取遇到429按Retry-After等待，保留client和授权上下文，不自动要求再次输入密码。等待监听在结束后移除。
 
 验证：npm run build、test-pr8-review.mjs、34项test-self-migration.mjs通过。新增test-pr8-polling.cjs在Chrome运行真实SelfServiceMigration与模拟父组件卸载重挂，使用浏览器虚拟时钟覆盖历史取消任务60秒稳定停留、准备90秒含429仍运行且无列表并发、终态刷新后重挂稳定及再次开始。HTTP与SelfMigrationClient操作使用合成替身，保险库本地初始化为真实Worker；不是实际VaultPanel全链路或真实后端联合验收。
+
+## PR #8 第三轮：初次空任务
+
+阶段比较先检查previous与当前任务均存在，再核对task_id和phase；空列表及首次快照不会访问空对象或触发终态刷新。独立pollError在成功读取后清除，操作错误仍单独保留，避免后台成功响应掩盖用户操作失败。
+
+扩展Chrome页面测试：active/latest均null，连续空列表轮询，空列表后出现新任务均无错误提示和额外刷新；模拟查询网络失败出现提示，恢复成功后清除。原取消历史、重挂、再次开始、90秒准备及429保留上下文场景仍通过。正式构建、test-pr8-review及34项核心回归通过。浏览器测试继续使用合成HTTP和client替身，不宣称完成真实后端联合验收。
