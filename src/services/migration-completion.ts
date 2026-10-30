@@ -13,3 +13,13 @@ export async function migrationCompletion(data:FlowStatus,readSelf:()=>Promise<a
  const legacy=await readLegacy();const task=[legacy.active,legacy.latest].find(t=>t&&t.vault_id===data.vault?.vault_id&&t.batch?.batch_id===batch.batch_id);
  return {task,selfTask:undefined,complete:!!task&&clean&&task.state==='completed'&&task.audit_complete===true&&!task.frozen&&task.batch?.state==='switched'&&task.batch.revision===batch.revision};
 }
+
+let completed:{token:string|null;task:any;until:number}|undefined;
+export function rememberCompletedTask(task:any){
+ if(task?.phase==='completed'&&task.batch?.state==='switched'&&task.audit?.complete===true&&!task.frozen&&!task.completion_gate)
+  completed={token:localStorage.getItem('forge_token'),task:structuredClone(task),until:performance.now()+30000};
+}
+export function consumeCompletedTask(flow:FlowStatus){
+ const cached=completed;completed=undefined;
+ if(cached&&cached.token===localStorage.getItem('forge_token')&&performance.now()<cached.until&&cached.task.vault_id===flow.vault?.vault_id&&cached.task.batch.batch_id===flow.latest_batch?.batch_id&&cached.task.batch.revision===flow.latest_batch?.revision)return {active:null,latest:cached.task};
+}

@@ -1,3 +1,4 @@
+import {rememberCompletedTask} from '@/services/migration-completion';
 import {useEffect,useId,useRef,useState} from 'react';
 import {Alert,Button,Checkbox,Input,Space,Typography} from 'antd';
 import {ApiError} from '@/lib/api-error';
@@ -11,7 +12,7 @@ export default function SelfServiceMigration({flow,onRefresh,onUnlock,onRunningC
  const scope=useRef<{active:boolean;busy:boolean;client?:SelfMigrationClient;abort:AbortController}>({active:false,busy:false,abort:new AbortController()});
  const callbacks=useRef({onRefresh,onRunningChange});callbacks.current={onRefresh,onRunningChange};
  useEffect(()=>{const s={active:true,busy:false,abort:new AbortController(),client:undefined as SelfMigrationClient|undefined};scope.current=s;let timer:ReturnType<typeof setTimeout>;let delay=15000;let previous:any;
- const poll=async()=>{if(document.hidden||s.busy){timer=setTimeout(poll,15000);return;}try{const r=(await api.get('/vault/self-service-migrations',{signal:s.abort.signal})).data.data;const t=r.active??r.latest;if(!s.active)return;if(s.busy)return;setTask(t);setPollError('');delay=15000;const changed=!!previous&&!!t&&previous.task_id===t.task_id&&previous.phase!==t.phase;previous=t;if(changed&&(t?.phase==='completed'||t?.phase==='canceled'))callbacks.current.onRefresh();}catch(e){if(s.active){setPollError(vaultMessage(e));delay=e instanceof ApiError&&e.kind==='rate-limit'?Math.max(15000,(e.retryAfterSeconds??60)*1000):Math.min(delay*2,60000);}}finally{if(s.active)timer=setTimeout(poll,delay);}};void poll();
+ const poll=async()=>{if(document.hidden||s.busy){timer=setTimeout(poll,15000);return;}try{const r=(await api.get('/vault/self-service-migrations',{signal:s.abort.signal})).data.data;const t=r.active??r.latest;if(!s.active)return;if(s.busy)return;setTask(t);setPollError('');delay=15000;const changed=!!previous&&!!t&&previous.task_id===t.task_id&&previous.phase!==t.phase;previous=t;if(changed&&(t?.phase==='completed'||t?.phase==='canceled')){rememberCompletedTask(t);callbacks.current.onRefresh();}}catch(e){if(s.active){setPollError(vaultMessage(e));delay=e instanceof ApiError&&e.kind==='rate-limit'?Math.max(15000,(e.retryAfterSeconds??60)*1000):Math.min(delay*2,60000);}}finally{if(s.active)timer=setTimeout(poll,delay);}};void poll();
  const off=vaultSession.subscribe(()=>{if(vaultSession.state==='locked'){s.client?.close();setPassword('');if(s.busy)setError('本地迁移已暂停。解锁后可继续，已提交的进度会保留。');}});
  return()=>{s.active=false;clearTimeout(timer);s.abort.abort();s.client?.close();off();callbacks.current.onRunningChange(false);};},[]);
  async function run(action:'process'|'retry'|'cancel'){
