@@ -69,3 +69,17 @@
 GET /vault/self-service-migrations 返回 active=null、latest=旧 canceled；F1 却已返回最新批次 switched、encrypted=11、audit.complete=true。页面没有自动收敛到完成。应修复历史时间混合写入下 latest 与当前批次的关联/排序，并确保最终完成查询获取匹配任务；不能仅靠重新登录或等待 8 小时。
 
 证据文件：old-failure.json（脚本成功复现旧故障，不表示迁移成功）、upgrade-resume-failed.json、browser-result.json（取消重建后页面未收敛）、logs/app.log 和合成保护备份。未操作真实业务库。现有服务保持不变，本轮临时服务和两个合成容器已清理。
+## 第二次修复后复验（2026-11-02，后端 51b2e13）
+
+结论：R2 已通过；R1 仍存在空历史时间字段边界，暂不提汇总 PR。前端代码未变，重新执行正式构建通过。
+
+两套全新隔离双 MySQL 实例，进程始终 TZ=Asia/Shanghai。均先用旧版 28bfec1 创建保险库/验证恢复材料/登记来源/触发旧版授权失败，再仅升级服务至 51b2e13。
+
+- R2（`/tmp/forge-source-example-f54nr4d0`）：UI 取消旧任务，再启动新任务；真实 Worker、保护备份/独立恢复、暂存/验证/切换/审计通过，页面自动显示“迁移完成，切换及审计已通过”。新浏览器再次解锁，10 条可见原值逐条核对通过，软删除记录隐藏。旧 canceled 的未来 created_at 未再阻止页面收敛。
+- R1（`/tmp/forge-source-example-ub8ob36w`）：旧任务直接接续，session、任务详情、批次和 source-chunks 均 200，随后前端校验失败，无 stage。数据库仍 client_processing，11 条原记录完整，旧值总字节为 209。
+
+剩余边界：本轮复用后端提供的 deployment example 合成数据，tokens.created_at/updated_at 为 NULL，进入 Go 模型后为零时间；软删除时间非空。旧保护快照中的 deleted_at 为 `2026-11-02T12:53:28.107969+08:00`，SQL 为 `2026-11-02 12:53:28.107969`。legacy_snapshot_time.go:29、38 直接采用零 CreatedAt 的 UTC Location，itemDeletedTime 返回 Z，仍与封存快照不同。修复未覆盖此场景。
+
+历史 writer 的 Token 模型对 CreatedAt/UpdatedAt 使用 autoCreateTime/autoUpdateTime，没有 not null 声明。正常应用写入会填时间，但本轮不能据此认定所有历史/导入记录均非空。不能把零时间当作已知 UTC 来源；需根据可验证的原快照恢复表示，或在后端明确识别不支持的历史格式并给出可执行的安全恢复路径，而非接口成功后才在客户端失败。不要放宽前端绑定校验或凭偏移猜测原数据。
+
+证据位于各目录 old-failure.json、browser-result.json、logs/app.log、保护备份和来源审计计划。old-failure 脚本的 passed 表示成功复现旧故障，不是迁移完成。两个后端来源准备集成样例及正式前端构建通过。临时服务与本轮四个合成 MySQL 容器已清理；没有修改真实业务数据。
