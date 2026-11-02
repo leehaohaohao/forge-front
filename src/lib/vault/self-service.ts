@@ -15,7 +15,9 @@ export function selfServiceLabel(s?:SelfService){
  if(phase==='preparing')return '系统正在准备迁移';
  if(phase==='client_processing')return '迁移已暂停，等待继续';
  if(phase==='finalizing'||phase==='auditing')return '正在完成迁移';
- return '迁移功能暂不可用';
+ if(s?.execution_supported&&(s.start.allowed||s.resume.allowed))return '可以迁移';
+ if(s?.blockers.includes('feature_disabled'))return '自助迁移未启用';
+ return '迁移状态暂无法确认，请刷新后重试';
 }
 // Front1 prototype: adapters are supplied by synthetic tests only. No production
 // create/session endpoint is enabled until backend preparation and delivery exist.

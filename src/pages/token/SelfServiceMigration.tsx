@@ -7,7 +7,7 @@ import {currentVault,vaultSession} from '@/lib/vault/runtime';
 import {SelfMigrationClient} from '@/services/vault-self-service';
 import {vaultMessage} from '@/lib/vault/messages';
 import type {FlowStatus} from '@/lib/vault/flow';
-export default function SelfServiceMigration({flow,onRefresh,onUnlock,onRunningChange,unlocked}:{flow:FlowStatus;onRefresh:()=>void;onUnlock:()=>void;onRunningChange:(v:boolean)=>void;unlocked:boolean}){
+export default function SelfServiceMigration({flow,onRefresh,onUnlock,onRunningChange,unlocked,readinessAllowed=true}:{readinessAllowed?:boolean;flow:FlowStatus;onRefresh:()=>void;onUnlock:()=>void;onRunningChange:(v:boolean)=>void;unlocked:boolean}){
  const form=useId(),[task,setTask]=useState<any>(),[password,setPassword]=useState(''),[confirmed,setConfirmed]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[pollError,setPollError]=useState('');
  const scope=useRef<{active:boolean;busy:boolean;client?:SelfMigrationClient;abort:AbortController}>({active:false,busy:false,abort:new AbortController()});
  const callbacks=useRef({onRefresh,onRunningChange});callbacks.current={onRefresh,onRunningChange};
@@ -16,7 +16,7 @@ export default function SelfServiceMigration({flow,onRefresh,onUnlock,onRunningC
  const off=vaultSession.subscribe(()=>{if(vaultSession.state==='locked'){s.client?.close();setPassword('');if(s.busy)setError('本地迁移已暂停。解锁后可继续，已提交的进度会保留。');}});
  return()=>{s.active=false;clearTimeout(timer);s.abort.abort();s.client?.close();off();callbacks.current.onRunningChange(false);};},[]);
  async function run(action:'process'|'retry'|'cancel'){
-  const s=scope.current;if(s.busy||!s.active)return;if(!unlocked){onUnlock();return;}s.busy=true;setBusy(true);setError('');callbacks.current.onRunningChange(true);const account={password};setPassword('');
+  const s=scope.current;if(s.busy||!s.active||(!readinessAllowed&&action!=='cancel'))return;if(!unlocked){onUnlock();return;}s.busy=true;setBusy(true);setError('');callbacks.current.onRunningChange(true);const account={password};setPassword('');
   try{const v=await currentVault(s.abort.signal);if(!s.active)return;const client=new SelfMigrationClient(vaultSession,v);s.client=client;
    let t=await client.establish(account,task&&!['completed','canceled'].includes(task.phase)?{resume:{taskId:task.task_id,revision:task.revision,replaceExisting:true},cancelOnly:action==='cancel'}:{resumeExisting:true});
    if(action!=='process')t=await client.act(action,t);
@@ -27,9 +27,10 @@ export default function SelfServiceMigration({flow,onRefresh,onUnlock,onRunningC
    if(s.active)callbacks.current.onRefresh();
   }catch(e){if(s.active)setError(vaultMessage(e));}finally{account.password='';s.client?.close();s.client=undefined;s.busy=false;if(s.active){setBusy(false);callbacks.current.onRunningChange(false);}}
  }
- const allowed=flow.self_service?.execution_supported&&(flow.self_service.start.allowed||flow.self_service.resume.allowed);
+ const allowed=readinessAllowed&&flow.self_service?.execution_supported&&(flow.self_service.start.allowed||flow.self_service.resume.allowed);
  const final=task&&['finalizing','auditing'].includes(task.phase);
  const completed=task?.phase==='completed'&&task.batch?.state==='switched'&&task.audit?.complete===true&&!task.completion_gate&&!task.frozen;
+ if(!readinessAllowed&&!task)return null;
  return <Space orientation="vertical">
  <Typography.Text role="status">{completed?'迁移完成，切换和审计已通过':final?'系统正在完成切换和审计，可稍后查看结果':busy?'正在处理，请保持页面打开':task?.phase==='failed'?'迁移未完成，请根据当前状态重试或取消':'解锁后可开始或继续迁移'}</Typography.Text>
  {task?.counts&&<Typography.Text>已暂存 {task.counts.staged}/{task.counts.total} · 已验证 {task.counts.verified}/{task.counts.total}</Typography.Text>}
