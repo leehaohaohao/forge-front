@@ -7,16 +7,20 @@ import {currentVault,vaultSession} from '@/lib/vault/runtime';
 import {SelfMigrationClient} from '@/services/vault-self-service';
 import {vaultMessage} from '@/lib/vault/messages';
 import type {FlowStatus} from '@/lib/vault/flow';
-export default function SelfServiceMigration({flow,onRefresh,onUnlock,onRunningChange,unlocked}:{flow:FlowStatus;onRefresh:()=>void;onUnlock:()=>void;onRunningChange:(v:boolean)=>void;unlocked:boolean}){
+export default function SelfServiceMigration({flow,onRefresh,onUnlock,onRunningChange,unlocked,readinessAllowed=true}:{readinessAllowed?:boolean;flow:FlowStatus;onRefresh:()=>void;onUnlock:()=>void;onRunningChange:(v:boolean)=>void;unlocked:boolean}){
  const form=useId(),[task,setTask]=useState<any>(),[password,setPassword]=useState(''),[confirmed,setConfirmed]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[pollError,setPollError]=useState('');
  const scope=useRef<{active:boolean;busy:boolean;client?:SelfMigrationClient;abort:AbortController}>({active:false,busy:false,abort:new AbortController()});
  const callbacks=useRef({onRefresh,onRunningChange});callbacks.current={onRefresh,onRunningChange};
  useEffect(()=>{const s={active:true,busy:false,abort:new AbortController(),client:undefined as SelfMigrationClient|undefined};scope.current=s;let timer:ReturnType<typeof setTimeout>;let delay=15000;let previous:any;
  const poll=async()=>{if(document.hidden||s.busy){timer=setTimeout(poll,15000);return;}try{const r=(await api.get('/vault/self-service-migrations',{signal:s.abort.signal})).data.data;const t=r.active??r.latest;if(!s.active)return;if(s.busy)return;setTask(t);setPollError('');delay=15000;const changed=!!previous&&!!t&&previous.task_id===t.task_id&&previous.phase!==t.phase;previous=t;if(changed&&(t?.phase==='completed'||t?.phase==='canceled')){rememberCompletedTask(t);callbacks.current.onRefresh();}}catch(e){if(s.active){setPollError(vaultMessage(e));delay=e instanceof ApiError&&e.kind==='rate-limit'?Math.max(15000,(e.retryAfterSeconds??60)*1000):Math.min(delay*2,60000);}}finally{if(s.active)timer=setTimeout(poll,delay);}};void poll();
- const off=vaultSession.subscribe(()=>{if(vaultSession.state==='locked'){s.client?.close();setPassword('');if(s.busy)setError('本地迁移已暂停。解锁后可继续，已提交的进度会保留。');}});
- return()=>{s.active=false;clearTimeout(timer);s.abort.abort();s.client?.close();off();callbacks.current.onRunningChange(false);};},[]);
+ const invalidate=()=>{s.active=false;s.abort.abort();s.client?.close();setPassword('');setConfirmed(false);setTask(undefined);setBusy(false);callbacks.current.onRunningChange(false);};
+ const token=localStorage.getItem('forge_token');const storage=(e:StorageEvent)=>{if(e.storageArea===localStorage&&(e.key===null||e.key==='forge_token')&&token!==localStorage.getItem('forge_token'))invalidate();};
+ window.addEventListener('forge-auth-invalid',invalidate);window.addEventListener('storage',storage);
+ const off=vaultSession.subscribe(()=>{if(vaultSession.state==='locked'){s.client?.close();setPassword('');setConfirmed(false);if(s.busy)setError('本地迁移已暂停。解锁后可继续，已提交的进度会保留。');}});
+ return()=>{window.removeEventListener('forge-auth-invalid',invalidate);window.removeEventListener('storage',storage);s.active=false;clearTimeout(timer);s.abort.abort();s.client?.close();off();callbacks.current.onRunningChange(false);};},[]);
+ useEffect(()=>{setPassword('');setConfirmed(false);},[flow,readinessAllowed]);
  async function run(action:'process'|'retry'|'cancel'){
-  const s=scope.current;if(s.busy||!s.active)return;if(!unlocked){onUnlock();return;}s.busy=true;setBusy(true);setError('');callbacks.current.onRunningChange(true);const account={password};setPassword('');
+  const s=scope.current;if(s.busy||!s.active||(!readinessAllowed&&action!=='cancel'))return;if(!unlocked){onUnlock();return;}s.busy=true;setBusy(true);setError('');callbacks.current.onRunningChange(true);const account={password};setPassword('');
   try{const v=await currentVault(s.abort.signal);if(!s.active)return;const client=new SelfMigrationClient(vaultSession,v);s.client=client;
    let t=await client.establish(account,task&&!['completed','canceled'].includes(task.phase)?{resume:{taskId:task.task_id,revision:task.revision,replaceExisting:true},cancelOnly:action==='cancel'}:{resumeExisting:true});
    if(action!=='process')t=await client.act(action,t);
@@ -25,11 +29,12 @@ export default function SelfServiceMigration({flow,onRefresh,onUnlock,onRunningC
      try{t=await client.read();break;}catch(e){if(e instanceof ApiError&&e.kind==='rate-limit'){wait=Math.max(15000,(e.retryAfterSeconds??60)*1000);continue;}throw e;}}
    }
    if(s.active)callbacks.current.onRefresh();
-  }catch(e){if(s.active)setError(vaultMessage(e));}finally{account.password='';s.client?.close();s.client=undefined;s.busy=false;if(s.active){setBusy(false);callbacks.current.onRunningChange(false);}}
+  }catch(e){if(s.active){setError(vaultMessage(e));if(e instanceof ApiError&&e.businessCode===40914)callbacks.current.onRefresh();}}finally{account.password='';s.client?.close();s.client=undefined;s.busy=false;if(s.active){setBusy(false);callbacks.current.onRunningChange(false);}}
  }
- const allowed=flow.self_service?.execution_supported&&(flow.self_service.start.allowed||flow.self_service.resume.allowed);
+ const allowed=readinessAllowed&&flow.self_service?.execution_supported&&(flow.self_service.start.allowed||flow.self_service.resume.allowed);
  const final=task&&['finalizing','auditing'].includes(task.phase);
  const completed=task?.phase==='completed'&&task.batch?.state==='switched'&&task.audit?.complete===true&&!task.completion_gate&&!task.frozen;
+ if(!readinessAllowed&&!task)return null;
  return <Space orientation="vertical">
  <Typography.Text role="status">{completed?'迁移完成，切换和审计已通过':final?'系统正在完成切换和审计，可稍后查看结果':busy?'正在处理，请保持页面打开':task?.phase==='failed'?'迁移未完成，请根据当前状态重试或取消':'解锁后可开始或继续迁移'}</Typography.Text>
  {task?.counts&&<Typography.Text>已暂存 {task.counts.staged}/{task.counts.total} · 已验证 {task.counts.verified}/{task.counts.total}</Typography.Text>}
