@@ -30,6 +30,9 @@ export type VaultCommand =
   | { action: 'credentials'; userId: string; vault: VaultConfig; password?: string; recoveryKey?: string; newPassword: string }
   | { action: 'verifyRecovery'; material: RecoveryMaterial }
   | { action: 'prepared' }
+  | { action:'legacyRecipient' }
+  | { action:'legacyClear' }
+  | { action:'legacyConvert';input:import('../legacy-migration/convert').Conversion }
   | { action:'selfRecipient' }
   | { action:'selfMigrate';run:import('./self-migration').SelfRun }
   | { action:'migrate';file:Blob;batchId:string }

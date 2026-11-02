@@ -55,4 +55,4 @@ export async function saveSecret(t:Token|null,metadata:TokenMetadata,secret:Toke
 }
 
 window.addEventListener('forge-auth-invalid',()=>vaultSession.lock());
-window.addEventListener('storage',e=>{if(e.key==='forge_token') vaultSession.lock();});
+window.addEventListener('storage',e=>{if(e.storageArea===localStorage&&(e.key===null||e.key==='forge_token')) vaultSession.lock();});

@@ -1,3 +1,5 @@
+import {legacyRecipient,convertLegacy,type Pair} from '../legacy-migration/convert';
+let legacyPair:Pair|undefined;
 import {recipient,DeliveryReceiver} from './delivery';
 import {selfMigrate} from './self-migration';
 import {readSourceFile} from './migration-source';
@@ -105,6 +107,17 @@ async function execute(command: VaultCommand | {action:'activatePrepared'}) {
       if (!pending?.confirmed) throw new VaultError('RECOVERY_UNVERIFIED');
       pending.digest.fill(0); pending = undefined;
       return true;
+    case 'legacyClear': legacyPair=undefined;return true;
+    case 'legacyRecipient': {
+      if(!vk||!current||!identity||pending)throw new VaultError('LOCKED');
+      legacyPair=undefined;legacyPair=await legacyRecipient();return {publicKey:legacyPair.publicKey,recipient:legacyPair.recipient};
+    }
+    case 'legacyConvert': {
+      if(!vk||!current||!identity||pending)throw new VaultError('LOCKED');
+      const pair=legacyPair;legacyPair=undefined;const v=command.input.vault;
+      requireThat(pair&&v.user_id===identity&&v.vault_id===current.vault_id&&v.vault_key_version===current.vault_key_version&&v.credential_version===current.credential_version);
+      return convertLegacy(pair!,vk,command.input);
+    }
     case 'selfRecipient': {
       if(!vk||!current||!identity)throw new VaultError('LOCKED');
       if(pending)throw new VaultError('RECOVERY_UNVERIFIED');

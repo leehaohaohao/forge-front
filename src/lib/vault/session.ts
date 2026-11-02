@@ -81,7 +81,7 @@ export class VaultSession {
       };
       this.worker.onerror=() => {if(this.worker===worker)this.lock('UNSUPPORTED');};
     }
-    this.touch();
+    if(!command.action.startsWith('legacy'))this.touch();
     const id=++this.serial;
     return new Promise((resolve,reject)=>{
       this.waiters.set(id,{resolve:resolve as (v:unknown)=>void,reject});
@@ -187,6 +187,9 @@ export class VaultSession {
     this.draft=undefined; this.status='unlocked'; this.notify();
     return result;
   }
+  legacyRecipient() {if(this.state!=='unlocked')throw new VaultError('LOCKED');return this.call<{publicKey:JsonWebKey;recipient:string}>({action:'legacyRecipient'});}
+  legacyConvert(input:import('../legacy-migration/convert').Conversion) {if(this.state!=='unlocked')throw new VaultError('LOCKED');return this.call<import('../legacy-migration/protocol').Commit>({action:'legacyConvert',input});}
+  clearLegacy() {if(this.worker)void this.call({action:'legacyClear'}).catch(()=>{});}
   async selfRecipient() {
     if(this.state!=='unlocked')throw new VaultError('LOCKED');
     if(this.migrationHost)throw new VaultError('STALE');

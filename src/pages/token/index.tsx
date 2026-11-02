@@ -9,13 +9,13 @@ import { operation, readSecret, saveSecret, vaultSession } from '@/lib/vault/run
 import { vaultMessage } from '@/lib/vault/messages';
 import { utf8, requireThat } from '@/lib/vault/format';
 import VaultPanel from './VaultPanel';
-import {useVaultFlow} from './useVaultFlow';
-import {capabilityMessage} from '@/lib/vault/flow';
+import {useDailyVault} from './useDailyVault';
+import AutoMigration from './AutoMigration';
 export default function TokenPage() {
   const {message}=App.useApp(),location=useLocation();
   const {tokens,loading,pagination,fetchTokens,setPagination,clear}=useTokenStore();
   const [form]=Form.useForm();
-  const flow=useVaultFlow();
+  const flow=useDailyVault();
   const [createIntent,setCreateIntent]=useState(false),[focusRequest,setFocusRequest]=useState(0);
   const panel=useRef<HTMLDivElement>(null);
   const cancelIntent=()=>setCreateIntent(false);
@@ -36,15 +36,12 @@ export default function TokenPage() {
   useEffect(()=>{
     if(createIntent && state==='unlocked' && flow.ready){
       setCreateIntent(false);
-      if(flow.data?.operations.create_token.allowed)edit(null);
+      if(flow.data?.initialized)edit(null);
     }
   },[createIntent,state,flow.ready,flow.data]);
-  const completionKey=flow.ready&&flow.data?.latest_batch?.state==='switched'?`${flow.data.latest_batch.batch_id}:${flow.data.latest_batch.revision}:${flow.data.audit.state}:${flow.data.completionConfirmed}`:'';
-  useEffect(()=>{if(completionKey){clearDisplay();refresh().catch(e=>message.error(vaultMessage(e)));}},[completionKey]);
   function requestCreate() {
     if(!flow.ready)return;
     if(!flow.data?.initialized){setCreateIntent(true);locateVault();return;}
-    if(!flow.data.operations.create_token.allowed)return;
     if(state==='unlocked')edit(null);
     else {setCreateIntent(true);locateVault();}
   }
@@ -90,8 +87,9 @@ export default function TokenPage() {
   }
   return <Space orientation="vertical" size={16} style={{width:'100%'}} data-private="true" data-sentry-mask="true" className="ph-no-capture token-page">
     <div ref={panel}><VaultPanel flow={flow} createRequested={createIntent} onCancelIntent={cancelIntent} focusRequest={focusRequest}/></div>
-    <Card title="密钥管理" extra={<Button type="primary" disabled={busy||!flow.ready||(!!flow.data?.initialized&&!flow.data.operations.create_token.allowed)} onClick={requestCreate}>新增密钥</Button>}>
-      {!flow.ready?<Typography.Text type="secondary">准备状态尚未确认，请在保险库区域重试或等待读取</Typography.Text>:!flow.data?.operations.create_token.allowed && <Typography.Text type="secondary">{capabilityMessage(flow.data?.operations.create_token)}</Typography.Text>}
+    <AutoMigration onChanged={()=>{void refresh().catch(()=>{});}}/>
+    <Card title="密钥管理" extra={<Button type="primary" disabled={busy||!flow.ready} onClick={requestCreate}>新增密钥</Button>}>
+      {!flow.ready&&<Typography.Text type="secondary">正在确认保险库状态；读取失败时可在上方重试。</Typography.Text>}
       <Space wrap style={{margin:'16px 0'}}><Input aria-label="搜索名称" placeholder="搜索名称" value={query} onChange={e=>setQuery(e.target.value)}/><Input aria-label="筛选供应商" placeholder="筛选供应商" value={provider} onChange={e=>setProvider(e.target.value)}/><Button disabled={busy} onClick={()=>{setPagination({current:1});refresh().catch(e=>message.error(vaultMessage(e)));}}>搜索</Button><Button disabled={busy} onClick={()=>{setQuery('');setProvider('');setPagination({current:1});fetchTokens().catch(e=>message.error(vaultMessage(e)));}}>重置</Button></Space>
       <Table<Token> scroll={{x:1000}} rowKey="id" dataSource={tokens} loading={loading} pagination={{...pagination,showSizeChanger:true}} onChange={p=>{setPagination({current:p.current,pageSize:p.pageSize});refresh().catch(e=>message.error(vaultMessage(e)));}} columns={[
         {title:'名称',dataIndex:'name'},{title:'供应商',dataIndex:'provider'},{title:'类型',dataIndex:'token_type'},{title:'分类',dataIndex:'category'},
@@ -101,8 +99,8 @@ export default function TokenPage() {
         {title:'操作',render:(_,t)=><Space wrap>
           <Button disabled={busy||state!=='unlocked'||t.encryption_state!=='client_encrypted'||!t.has_secret} onClick={()=>run(op=>show(t,'view',op))}>查看</Button>
           <Button disabled={busy||state!=='unlocked'||t.encryption_state!=='client_encrypted'||!t.has_secret} onClick={()=>run(op=>show(t,'copy',op))}>复制</Button>
-          <Button disabled={busy||!flow.ready||!flow.data?.operations.edit_metadata.allowed} onClick={()=>edit(t)}>编辑</Button>
-          <Popconfirm title="删除此记录？" description="删除后不会清除已复制的剪贴板内容。" onConfirm={()=>run(async op=>{await deleteToken(t,op.signal);op.guard();await refresh();op.guard();message.success('删除成功');})}><Button danger disabled={busy||!flow.ready||!flow.data?.operations.delete_token.allowed}>删除</Button></Popconfirm>
+          <Button disabled={busy||!flow.ready} onClick={()=>edit(t)}>编辑</Button>
+          <Popconfirm title="删除此记录？" description="删除后不会清除已复制的剪贴板内容。" onConfirm={()=>run(async op=>{await deleteToken(t,op.signal);op.guard();await refresh();op.guard();message.success('删除成功');})}><Button danger disabled={busy||!flow.ready}>删除</Button></Popconfirm>
         </Space>},
       ]}/>
     </Card>
@@ -111,7 +109,7 @@ export default function TokenPage() {
       <Form form={form} layout="vertical" preserve={false} autoComplete="off">
         <Form.Item name="provider" label="供应商" rules={[{required:true,whitespace:true},{max:50}]}><Input disabled={busy}/></Form.Item>
         <Form.Item name="name" label="名称" rules={[{required:true,whitespace:true},{max:100}]}><Input disabled={busy}/></Form.Item>
-        <Form.Item name="secret" label={editing?'替换密钥（留空保留）':'业务密钥'}><Input.Password autoComplete="off" disabled={busy||state!=='unlocked'||editing?.encryption_state==='legacy_pending'||!flow.ready||(!!editing&&!flow.data?.operations.replace_secret.allowed)}/></Form.Item>
+        <Form.Item name="secret" label={editing?'替换密钥（留空保留）':'业务密钥'}><Input.Password autoComplete="off" disabled={busy||state!=='unlocked'||editing?.encryption_state==='legacy_pending'||!flow.ready}/></Form.Item>
         <Form.Item name="token_type" label="类型" rules={[{max:50}]}><Input disabled={busy}/></Form.Item>
         <Form.Item name="category" label="分类" rules={[{max:50}]}><Input disabled={busy}/></Form.Item>
         <Checkbox disabled={busy} checked={never} onChange={e=>setNever(e.target.checked)}>清空到期时间（永不过期）</Checkbox>
