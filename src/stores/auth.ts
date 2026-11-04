@@ -1,4 +1,3 @@
-import {revokeLogoutSession} from '@/services/logout-revocation';
 import { vaultSession } from '@/lib/vault/runtime';
 import { useTokenStore } from '@/stores/tokens';
 import { create } from 'zustand';
@@ -45,15 +44,12 @@ export const useAuthStore = create<AuthState>((set) => ({
     await registerApi(phone, password, username);
   },
 
-  logout: async (revoke=true) => {
-    const token=localStorage.getItem(TOKEN_KEY);
-    const revocation=revoke&&token?revokeLogoutSession(token):Promise.resolve(true);
+  logout: async () => {
     vaultSession.lock(); useTokenStore.getState().clear();
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(TOKEN_TIME_KEY);
     localStorage.removeItem(USER_KEY);
     set({ token: null, user: null, isLoggedIn: false });
-    await revocation;
   },
 
   initAuth: () => {

@@ -83,8 +83,7 @@ export async function decryptSecret(vk: CryptoKey, c: SecretContext, envelope: S
   let bytes: Uint8Array<ArrayBuffer> | undefined;
   try {
     bytes = await open(await importAes(dek),{nonce:envelope.nonce,ciphertext:envelope.ciphertext},secretAad(c),17,8208);
-    const value = new TextDecoder('utf-8',{fatal:true}).decode(bytes);
-    requireThat(value.trim());
+    const value = new TextDecoder('utf-8',{fatal:true,ignoreBOM:true}).decode(bytes);
     return value;
   } finally { dek.fill(0); bytes?.fill(0); }
 }

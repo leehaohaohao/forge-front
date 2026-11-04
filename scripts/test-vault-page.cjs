@@ -21,12 +21,16 @@ for(const channel of (process.env.VAULT_BROWSERS||'chromium,msedge').split(','))
    requests.push({path,method,body});
    const respond=(data,status=200,code=0)=>route.fulfill({status,contentType:'application/json',headers:{'Cache-Control':'no-store'},body:JSON.stringify({code,message:code?'request failed':'success',data})});
    if(unauthorized&&path==='/forge/token'){unauthorized=false;return respond(null,process.env.VAULT_AUTH_EXPIRY==='legacy'?200:401,401);}
-   if(path==='/forge/vault/migration-status')return respond(require('./vault-flow-fixture.cjs').statusFor(vault,user));
    if(path==='/forge/vault'&&method==='GET')return respond({initialized:!!vault,user_id:user,vault});
    if(path==='/forge/vault'&&method==='POST'){
      assert.equal(vault,null);assert(!('user_id' in body));vault={...body,user_id:user,revision:'1',created_at:new Date().toISOString(),updated_at:new Date().toISOString(),dek_wrap_count:0,dek_wrap_warn_at:900000,dek_wrap_limit:1000000};return respond(vault);
    }
-   if(path==='/forge/auth/reauth') { if(reauthFailure!==undefined){const status=reauthFailure;reauthFailure=undefined;return respond(null,status,40101);} assert.equal(body.purpose,'vault_credentials');assert.equal(body.account_password,'fixture-account-password');return respond({reauth_token:'fixture-reauth'}); }
+   if(path==='/forge/auth/reauth') { if(reauthFailure!==undefined){const status=reauthFailure;reauthFailure=undefined;return respond(null,status,40101);} assert(['vault_credentials','vault_export'].includes(body.purpose));assert.equal(body.account_password,'fixture-account-password');return respond({reauth_token:'fixture-reauth'}); }
+   if(path==='/forge/vault/export') {
+     assert.equal(r.headers()['x-forge-reauth'],'fixture-reauth');
+     assert.equal(body.expected_revision,vault.revision);
+     return respond({format_version:1,export_id:'55555555-5555-4555-8555-555555555555',exported_at:new Date().toISOString(),user_id:user,vault,record_count:records.length,legacy_pending_count:0,records:records.map(t=>({metadata:t,deleted_at:null,secret_envelope:envelopes[t.id]}))});
+   }
    if(path==='/forge/vault/credentials') { assert.equal(r.headers()['x-forge-reauth'],'fixture-reauth');assert.equal(body.expected_revision,vault.revision);const {expected_revision,...wraps}=body;vault={...vault,...wraps,revision:String(BigInt(vault.revision)+1n)};return respond(vault); }
    if(path==='/forge/token'&&method==='GET')return respond({list:records,total:records.length,page:1,page_size:10});
    if(path==='/forge/token'&&method==='POST'){
@@ -128,6 +132,20 @@ for(const channel of (process.env.VAULT_BROWSERS||'chromium,msedge').split(','))
   assert.equal(access,0);assert.equal(records[0].id,'9007199254740995');
   await btn('查看').click();await page.getByText(secret,{exact:true}).waitFor();await btn('隐藏').click();
   await btn('复制').click();await page.waitForFunction(()=>window.__copies.length===1);assert.equal(await page.evaluate(()=>window.__copies[0]),secret);
+  await page.getByText('加密备份与独立恢复验证',{exact:true}).click();
+  await page.getByLabel('备份账号登录密码',{exact:true}).fill('fixture-account-password');
+  await btn('准备加密备份').click();
+  async function download(name){const waiting=page.waitForEvent('download');await btn(name).click();return fs.readFile(await (await waiting).path());}
+  const backupBytes=await download('下载加密备份'),checksumBytes=await download('下载备份摘要');
+  const clean=await browser.newContext();const recoveryPage=await clean.newPage();
+  try {
+    await recoveryPage.goto(base+'/app/recovery-check');
+    await recoveryPage.getByLabel('恢复验证加密备份').setInputFiles({name:'backup.json',mimeType:'application/json',buffer:backupBytes});
+    await recoveryPage.getByLabel('恢复验证备份摘要').setInputFiles({name:'backup.sha256',mimeType:'text/plain',buffer:checksumBytes});
+    await recoveryPage.getByLabel('恢复验证恢复文件').setInputFiles({name:'recovery.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(material))});
+    await recoveryPage.getByRole('checkbox').check();await recoveryPage.getByRole('button',{name:'验证备份恢复',exact:true}).click();
+    await recoveryPage.getByText('本次备份独立恢复验证通过',{exact:true}).waitFor();
+  } finally {await clean.close();}
   const before=access;await btn('编辑').click();await page.getByLabel('名称',{exact:true}).fill('metadata-edit');await btn('OK').click();await page.getByRole('cell',{name:'metadata-edit',exact:true}).waitFor();assert.equal(access,before);
   await btn('编辑').click();await page.getByLabel('替换密钥（留空保留）',{exact:true}).fill(replacement);await btn('OK').click();await page.getByText('保存成功',{exact:true}).last().waitFor();
   await page.waitForFunction(()=>!document.querySelector('.ant-modal-wrap:not([style*="display: none"])'));
@@ -170,12 +188,9 @@ for(const channel of (process.env.VAULT_BROWSERS||'chromium,msedge').split(','))
   }
   await page.getByLabel('账号登录密码',{exact:true}).fill('fixture-account-password');await btn('保存加密保险库').click();await page.getByText('已解锁',{exact:true}).waitFor();
   await btn('查看').click();await page.getByText(replacement,{exact:true}).waitFor();await btn('隐藏').click();
-  // Legacy rows allow metadata only, and deletion carries a revision in the JSON body.
-  records.push({...records[0],id:'100',name:'legacy',encryption_state:'legacy_pending'});await btn('搜索').click();
-  const legacy=page.getByRole('row').filter({has:page.getByRole('cell',{name:'legacy',exact:true})});
-  assert(await legacy.getByRole('button',{name:/查\s*看/}).isDisabled());assert(await legacy.getByRole('button',{name:/复\s*制/}).isDisabled());
-  await legacy.getByRole('button',{name:/编\s*辑/}).click();assert(await page.getByLabel('替换密钥（留空保留）',{exact:true}).isDisabled());await btn('Cancel').click();
-  await legacy.getByRole('button',{name:/删\s*除/}).click();await btn('OK').click();await legacy.waitFor({state:'hidden'});
+  // Encrypted deletion still carries the expected revision.
+  await btn('删除').click();await btn('OK').click();
+  await page.getByRole('cell',{name:'metadata-edit',exact:true}).waitFor({state:'hidden'});
   // Route departure and reload both lose unlocked keys.
   await page.getByRole('link',{name:'首页',exact:true}).click();await page.getByRole('link',{name:'密钥管理',exact:true}).click();await page.getByText('已锁定',{exact:true}).waitFor();
   await page.getByLabel('独立解锁密码',{exact:true}).fill(nextPassword);await btn('解锁').click();await page.getByText('已解锁',{exact:true}).waitFor();
@@ -184,6 +199,7 @@ for(const channel of (process.env.VAULT_BROWSERS||'chromium,msedge').split(','))
   for(const value of secrets){assert(!JSON.stringify(requests).includes(value),'plaintext in request');assert(!stored.includes(value),'plaintext in storage');}
   unauthorized=true;await btn('搜索').click();await page.waitForURL('**/app/login');
   assert.deepEqual(await page.evaluate(()=>['forge_token','forge_token_time','forge_user'].map(k=>localStorage.getItem(k))),[null,null,null]);
+  assert(!requests.some(r=>/migration|self-service|readiness/.test(r.path)), 'retired API requested');
   assert.equal(errors.length,0,errors.join('\n'));
   console.log(channel+' '+browser.version()+': PASS production page: initialize, precise IDs, encrypted CRUD, metadata-only, copy retry, tamper, conflict, late response, hide, wrong password, timers, storage/network');
  } catch(e) { console.log('page test failed at '+page.url()); console.log(errors); throw e; } finally {await browser.close();}
