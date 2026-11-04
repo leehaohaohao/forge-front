@@ -78,7 +78,7 @@ export default function VaultPanel({flow,createRequested,onCancelIntent,focusReq
     {/* Explicit form owners prevent Chrome from pairing the header search with secrets. */}
     <form id={vaultForm} autoComplete="off" onSubmit={e=>e.preventDefault()} />
     <form id={reauthForm} autoComplete="off" onSubmit={e=>e.preventDefault()} />
-    <Popover content="使用独立长口令。恢复材料请离线保管；解锁后会自动整理历史密钥。查看的秘密30秒后隐藏，5分钟无操作或页面隐藏时锁定。复制内容需自行清理。"><Button type="text" shape="circle" aria-label="保险库使用说明" icon={<QuestionCircleOutlined/>}/></Popover>
+    <Popover content="使用独立长口令。恢复材料请离线保管，解锁后可新增、查看和复制密钥。查看的秘密30秒后隐藏，5分钟无操作或页面隐藏时锁定。复制内容需自行清理。"><Button type="text" shape="circle" aria-label="保险库使用说明" icon={<QuestionCircleOutlined/>}/></Popover>
     {flow.error?<Alert type="error" showIcon title={flow.error} action={<Button onClick={flow.refresh}>重试状态</Button>}/>:flow.loading?<Typography.Paragraph role="status">正在读取保险库…</Typography.Paragraph>:null}
     {flow.ready && flow.data && <>
       {info?.initialized && (mode!=='unlock'||pending) && <Typography.Title level={5}>更新解锁凭据</Typography.Title>}
