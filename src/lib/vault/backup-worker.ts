@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 import {parseBackup,BACKUP_LIMIT} from './backup-file';
-import {strictJson} from './migration-source';
-import {digest,unlock,verifyBackup} from './migration-core';
+import {strictJson} from './strict-json';
+import {digest,unlock,verifyBackup} from './backup-core';
 import {requireThat,validateRecovery} from './format';
 // One fresh Worker per verification: no session key, RPC, network, or persistent state.
 self.onmessage=async({data})=>{

@@ -19,7 +19,7 @@ export default function RecoveryCheck(){
     w.postMessage({backup,recovery,checksum});setBackup(undefined);setRecovery(undefined);setChecksum(undefined);
   }
   return <div ref={root} data-private="true" data-sentry-mask="true" className="ph-no-capture" style={{maxWidth:760,margin:'32px auto',padding:16}}><Card title="独立恢复验证">
-    <Typography.Paragraph>在新的隐私窗口或干净浏览器中打开本页。无需登录，文件仅在本地验证，不写回业务记录，也不会自动登记管理员恢复结果。</Typography.Paragraph>
+    <Typography.Paragraph>在新的隐私窗口或干净浏览器中打开本页。无需登录，文件仅在本地验证，不写回业务记录。</Typography.Paragraph>
     {!cleanBrowser?<Alert type="warning" showIcon title="当前浏览器存在登录会话，请复制本页地址到新的隐私窗口。"/>:<Space orientation="vertical" style={{width:'100%'}}>
       <Typography.Text>选择加密备份、对应的 .sha256 摘要和恢复文件；恢复文件与备份请分别保管。</Typography.Text>
       <label>加密备份 <input type="file" aria-label="恢复验证加密备份" disabled={busy} onChange={e=>{setBackup(e.target.files?.[0]);setResult(undefined);}}/></label>
@@ -31,6 +31,6 @@ export default function RecoveryCheck(){
     </Space>}
     {busy&&<Typography.Paragraph role="status">正在独立验证…</Typography.Paragraph>}
     {error&&<Alert type="error" showIcon title={error}/>}
-    {result&&<Alert type={result.complete?'success':'warning'} showIcon title={result.complete?'本次备份独立恢复验证通过':'备份不完整，不能确认全部恢复'} description={<><p>核验 {result.records} 条，待迁移 {result.legacy_pending} 条。</p><p>导出标识：{result.export_id}</p><p>验证时间：{result.checked_at}</p><p>仅代表此备份的本地核验结果；管理员须另行核对并登记对应快照。</p></>}/>}
+    {result&&<Alert type={result.complete?'success':'warning'} showIcon title={result.complete?'本次备份独立恢复验证通过':'备份不完整，不能确认全部恢复'} description={<><p>核验 {result.records} 条，待迁移 {result.legacy_pending} 条。</p><p>导出标识：{result.export_id}</p><p>验证时间：{result.checked_at}</p><p>仅代表此备份的本地核验结果，请继续妥善保管备份和恢复材料。</p></>}/>}
   </Card></div>;
 }

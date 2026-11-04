@@ -1,3 +1,4 @@
+import './vault.css';
 import { useEffect, useRef, useState } from 'react';
 import { App, Button, Card, DatePicker, Form, Input, Modal, Popconfirm, Space, Table, Tag, Typography, Checkbox } from 'antd';
 import { useLocation } from 'react-router-dom';
@@ -10,7 +11,6 @@ import { vaultMessage } from '@/lib/vault/messages';
 import { utf8, requireThat } from '@/lib/vault/format';
 import VaultPanel from './VaultPanel';
 import {useDailyVault} from './useDailyVault';
-import AutoMigration from './AutoMigration';
 export default function TokenPage() {
   const {message}=App.useApp(),location=useLocation();
   const {tokens,loading,pagination,fetchTokens,setPagination,clear}=useTokenStore();
@@ -20,7 +20,6 @@ export default function TokenPage() {
   const panel=useRef<HTMLDivElement>(null);
   const cancelIntent=()=>setCreateIntent(false);
   const locateVault=()=>{panel.current?.scrollIntoView({block:'start',behavior:'smooth'});setFocusRequest(n=>n+1);};
-  const locateMigration=()=>{const target=document.getElementById('vault-migration-step');(target??panel.current)?.scrollIntoView({block:'center'});target?.focus();};
   const [open,setOpen]=useState(false),[editing,setEditing]=useState<Token|null>(null),[never,setNever]=useState(false);
   const [busy,setBusy]=useState(false),[query,setQuery]=useState(''),[provider,setProvider]=useState(''),[state,setState]=useState(vaultSession.state);
   const [visible,setVisible]=useState(''),[copyReady,setCopyReady]=useState(false);
@@ -51,8 +50,7 @@ export default function TokenPage() {
     finally{op.done();mutex.current=false;setBusy(false);}
   }
   function edit(t:Token|null) {
-    clearDisplay();form.resetFields();setEditing(t);setNever(t?false:true);
-    if(t)form.setFieldsValue({provider:t.provider,name:t.name,token_type:t.token_type,category:t.category,remark:t.remark,secret:''});
+    clearDisplay();setEditing(t);setNever(t?false:true);
     setOpen(true);
   }
   async function submit(op:ReturnType<typeof operation>) {
@@ -87,14 +85,13 @@ export default function TokenPage() {
   }
   return <Space orientation="vertical" size={16} style={{width:'100%'}} data-private="true" data-sentry-mask="true" className="ph-no-capture token-page">
     <div ref={panel}><VaultPanel flow={flow} createRequested={createIntent} onCancelIntent={cancelIntent} focusRequest={focusRequest}/></div>
-    <AutoMigration onChanged={()=>{void refresh().catch(()=>{});}}/>
     <Card title="密钥管理" extra={<Button type="primary" disabled={busy||!flow.ready} onClick={requestCreate}>新增密钥</Button>}>
       {!flow.ready&&<Typography.Text type="secondary">正在确认保险库状态；读取失败时可在上方重试。</Typography.Text>}
       <Space wrap style={{margin:'16px 0'}}><Input aria-label="搜索名称" placeholder="搜索名称" value={query} onChange={e=>setQuery(e.target.value)}/><Input aria-label="筛选供应商" placeholder="筛选供应商" value={provider} onChange={e=>setProvider(e.target.value)}/><Button disabled={busy} onClick={()=>{setPagination({current:1});refresh().catch(e=>message.error(vaultMessage(e)));}}>搜索</Button><Button disabled={busy} onClick={()=>{setQuery('');setProvider('');setPagination({current:1});fetchTokens().catch(e=>message.error(vaultMessage(e)));}}>重置</Button></Space>
       <Table<Token> scroll={{x:1000}} rowKey="id" dataSource={tokens} loading={loading} pagination={{...pagination,showSizeChanger:true}} onChange={p=>{setPagination({current:p.current,pageSize:p.pageSize});refresh().catch(e=>message.error(vaultMessage(e)));}} columns={[
         {title:'名称',dataIndex:'name'},{title:'供应商',dataIndex:'provider'},{title:'类型',dataIndex:'token_type'},{title:'分类',dataIndex:'category'},
         {title:'密钥',render:()=> <Typography.Text code>••••••••</Typography.Text>},
-        {title:'状态',render:(_,t)=><Tag color={t.encryption_state==='legacy_pending'?'orange':'green'}>{t.encryption_state==='legacy_pending'?<Button type="link" size="small" onClick={locateMigration}>待迁移</Button>:'已加密'}</Tag>},
+        {title:'状态',render:()=> <Tag color="green">已加密</Tag>},
         {title:'到期时间',render:(_,t)=>t.expires_at?<Typography.Text type={dayjs(t.expires_at).isBefore(dayjs())?'danger':undefined}>{dayjs(t.expires_at).format('YYYY-MM-DD')}</Typography.Text>:'永不过期'},
         {title:'操作',render:(_,t)=><Space wrap>
           <Button disabled={busy||state!=='unlocked'||t.encryption_state!=='client_encrypted'||!t.has_secret} onClick={()=>run(op=>show(t,'view',op))}>查看</Button>
@@ -106,10 +103,10 @@ export default function TokenPage() {
     </Card>
     <Modal title={editing?'编辑密钥':'新增密钥'} open={open} onCancel={close} onOk={()=>run(submit)} confirmLoading={busy} cancelButtonProps={{disabled:busy}} closable={!busy} maskClosable={!busy} keyboard={!busy} destroyOnHidden>
       <Typography.Paragraph type="secondary">名称、供应商、分类和备注为明文，请勿填写秘密。</Typography.Paragraph>
-      <Form form={form} layout="vertical" preserve={false} autoComplete="off">
+      <Form form={form} clearOnDestroy initialValues={editing?{provider:editing.provider,name:editing.name,token_type:editing.token_type,category:editing.category,remark:editing.remark,secret:''}:{}} layout="vertical" preserve={false} autoComplete="off">
         <Form.Item name="provider" label="供应商" rules={[{required:true,whitespace:true},{max:50}]}><Input disabled={busy}/></Form.Item>
         <Form.Item name="name" label="名称" rules={[{required:true,whitespace:true},{max:100}]}><Input disabled={busy}/></Form.Item>
-        <Form.Item name="secret" label={editing?'替换密钥（留空保留）':'业务密钥'}><Input.Password autoComplete="off" disabled={busy||state!=='unlocked'||editing?.encryption_state==='legacy_pending'||!flow.ready}/></Form.Item>
+        <Form.Item name="secret" label={editing?'替换密钥（留空保留）':'业务密钥'}><Input.Password autoComplete="off" disabled={busy||state!=='unlocked'||!flow.ready}/></Form.Item>
         <Form.Item name="token_type" label="类型" rules={[{max:50}]}><Input disabled={busy}/></Form.Item>
         <Form.Item name="category" label="分类" rules={[{max:50}]}><Input disabled={busy}/></Form.Item>
         <Checkbox disabled={busy} checked={never} onChange={e=>setNever(e.target.checked)}>清空到期时间（永不过期）</Checkbox>

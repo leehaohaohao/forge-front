@@ -4,7 +4,7 @@ import { decimal, requireThat } from '@/lib/vault/format';
 // Explicit DTO projection keeps unexpected legacy fields out of component/store state.
 export function tokenMetadata(t: Token): Token {
   decimal(t.id); decimal(t.user_id); decimal(t.revision);
-  requireThat(['legacy_pending','client_encrypted'].includes(t.encryption_state) && typeof t.has_secret === 'boolean');
+  requireThat(t.encryption_state === 'client_encrypted' && typeof t.has_secret === 'boolean');
   return {id:t.id,user_id:t.user_id,revision:t.revision,provider:t.provider,name:t.name,
     token_type:t.token_type,category:t.category,remark:t.remark,expires_at:t.expires_at,
     created_at:t.created_at,updated_at:t.updated_at,has_secret:t.has_secret,encryption_state:t.encryption_state};

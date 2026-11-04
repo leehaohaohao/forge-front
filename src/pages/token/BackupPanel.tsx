@@ -7,7 +7,7 @@ import {readVault} from '@/services/vault';
 import {operation,vaultSession} from '@/lib/vault/runtime';
 import {vaultMessage} from '@/lib/vault/messages';
 import {parseBackup,BACKUP_LIMIT} from '@/lib/vault/backup-file';
-import {digest} from '@/lib/vault/migration-core';
+import {digest} from '@/lib/vault/backup-core';
 import {requireThat,utf8} from '@/lib/vault/format';
 import type {VaultStatus} from '@/services/vault';
 export default function BackupPanel({flow}:{flow:Pick<VaultStatus,'user_id'|'vault'>}){

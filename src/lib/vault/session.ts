@@ -1,4 +1,3 @@
-import type {MigrationHost,MigrationProgress} from './migration-protocol';
 import type { VaultFailure, VaultCommand, VaultConfig, VaultRead, PreparedVault, RecoveryMaterial, SecretContext, SecretEnvelope } from './types';
 import { VaultError } from './types';
 import { decimal, validateVault, validatePassword } from './format';
@@ -23,8 +22,6 @@ function equalConfig(a: VaultConfig, b: VaultConfig) {
 }
 export class VaultSession {
   private worker?: Worker;
-  private migrationHost?:MigrationHost;
-  private migrationProgress?:(progress:MigrationProgress)=>void;
   private serial=0;
   private generation=0;
   private waiters=new Map<number,{resolve:(value:unknown)=>void; reject:(error:Error)=>void}>();
@@ -68,12 +65,6 @@ export class VaultSession {
       const worker=this.worker;
       this.worker.onmessage=({data}) => {
         if(this.worker!==worker)return;
-        if(data.kind==='migration-progress'){this.migrationProgress?.(data.progress);return;}
-        if(data.kind==='migration-request'){
-          const host=this.migrationHost,epoch=this.generation;
-          if(host)void host(data.request).then(reply=>{if(this.isCurrent(epoch)&&this.worker===worker)worker.postMessage({migrationReply:data.id,reply});}).catch(()=>{if(this.isCurrent(epoch)&&this.worker===worker)worker.postMessage({migrationReply:data.id,reply:{ok:false,code:'MIGRATION_NETWORK'}});});
-          return;
-        }
         const waiter=this.waiters.get(data.id);
         if (!waiter) return;
         this.waiters.delete(data.id);
@@ -81,7 +72,7 @@ export class VaultSession {
       };
       this.worker.onerror=() => {if(this.worker===worker)this.lock('UNSUPPORTED');};
     }
-    if(!command.action.startsWith('legacy'))this.touch();
+    this.touch();
     const id=++this.serial;
     return new Promise((resolve,reject)=>{
       this.waiters.set(id,{resolve:resolve as (v:unknown)=>void,reject});
@@ -110,7 +101,6 @@ export class VaultSession {
     }
   }
   lock(reason:VaultFailure='STALE',preserveDraft=false) {
-    this.migrationHost=undefined;this.migrationProgress=undefined;
     this.generation++; this.worker?.terminate(); this.worker=undefined;
     this.waiters.forEach(w=>w.reject(new VaultError(reason))); this.waiters.clear();
     clearTimeout(this.timer); if(preserveDraft && this.draft) this.draft.verified=false; else this.draft=undefined; this.status='locked'; this.notify();
@@ -186,28 +176,6 @@ export class VaultSession {
     await this.call({action:'activatePrepared'}); guard();
     this.draft=undefined; this.status='unlocked'; this.notify();
     return result;
-  }
-  legacyRecipient() {if(this.state!=='unlocked')throw new VaultError('LOCKED');return this.call<{publicKey:JsonWebKey;recipient:string}>({action:'legacyRecipient'});}
-  legacyConvert(input:import('../legacy-migration/convert').Conversion) {if(this.state!=='unlocked')throw new VaultError('LOCKED');return this.call<import('../legacy-migration/protocol').Commit>({action:'legacyConvert',input});}
-  clearLegacy() {if(this.worker)void this.call({action:'legacyClear'}).catch(()=>{});}
-  async selfRecipient() {
-    if(this.state!=='unlocked')throw new VaultError('LOCKED');
-    if(this.migrationHost)throw new VaultError('STALE');
-    return this.call<{publicKey:JsonWebKey;recipient:string}>({action:'selfRecipient'});
-  }
-  async selfMigrate(run:import('./self-migration').SelfRun,host:MigrationHost,progress:(p:MigrationProgress)=>void) {
-    if(this.state!=='unlocked')throw new VaultError('LOCKED');
-    if(this.migrationHost)throw new VaultError('STALE');
-    const epoch=this.generation;this.migrationHost=host;this.migrationProgress=progress;
-    try{return await this.call<{accepted:true;phase:string}>({action:'selfMigrate',run});}
-    finally{if(this.isCurrent(epoch)){this.migrationHost=undefined;this.migrationProgress=undefined;}}
-  }
-  async migrate(file:Blob,batchId:string,host:MigrationHost,progress:(p:MigrationProgress)=>void) {
-    if(this.state!=='unlocked')throw new VaultError('LOCKED');
-    if(this.migrationHost)throw new VaultError('STALE');
-    const epoch=this.generation;this.migrationHost=host;this.migrationProgress=progress;
-    try{return await this.call<{state:string;verified_count:number;record_count:number}>({action:'migrate',file,batchId});}
-    finally{if(this.isCurrent(epoch)){this.migrationHost=undefined;this.migrationProgress=undefined;}}
   }
   encrypt(context:SecretContext,value:string,wrapCount:number,previousVersion=0) { if (this.state !== 'unlocked') return Promise.reject(new VaultError('LOCKED')); return this.call<SecretEnvelope>({action:'encrypt',context,value,wrapCount,previousVersion}); }
   decrypt(context:SecretContext,envelope:SecretEnvelope) { if (this.state !== 'unlocked') return Promise.reject(new VaultError('LOCKED')); return this.call<string>({action:'decrypt',context,envelope}); }
